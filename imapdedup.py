@@ -29,7 +29,7 @@
 
 
 import sys, getpass, re
-import imaplib
+import imaplib, hashlib
 from email.parser import Parser
 
 # IMAP responses should normally begin 'OK' - we strip that off
@@ -51,6 +51,8 @@ def get_arguments():
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="Verbose mode")
     parser.add_option("-n", "--dry-run", dest="dry_run", action="store_true", 
                         help="Don't actually do anything, just report what would be done")
+    parser.add_option("-c","--checksum", dest="use_checksum", action="store_true", 
+                        help="If the message has no Message-ID header, use a checksum of From, To, Date and Subject")
     parser.add_option("-l", "--list", dest="just_list", action="store_true", 
                                             help="Just list mailboxes")
 
@@ -72,6 +74,29 @@ def parse_list_response(line):
     flags, delimiter, mailbox_name = list_response_pattern.match(line).groups()
     mailbox_name = mailbox_name.strip('"')
     return (flags, delimiter, mailbox_name)
+
+def get_message_id(parsed_message, options_use_checksum = False):
+    """
+    Return the Message-ID header, if it exists, or a checksum of 
+    From,To,Date and Subject, if not and if the user has allowed that.
+    Otherwise, print a warning.
+    """
+    msg_id = parsed_message['Message-ID']
+    if not msg_id:
+        if options_use_checksum:
+            md5 = hashlib.md5()
+            md5.update("From:"    + str(parsed_message['From']))
+            md5.update("To:"      + str(parsed_message['To']))
+            md5.update("Subject:" + str(parsed_message['Subject']))
+            md5.update("Date:"    + str(parsed_message['Date']))
+            msg_id = md5.hexdigest()
+        else:
+            print "Message '%s' dated '%s' has no Message-ID header." % (
+                parsed_message['Subject'], parsed_message['Date'])
+            print "You might want to use the -c option."
+            return None
+    return msg_id
+
 
 # This actually does the work
 def main():
@@ -121,16 +146,18 @@ def main():
         for mnum in msgnums:
             m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
             mp = p.parsestr(m[0][1])
-            # print m[0]
-            msg_id = mp['Message-ID']
-            if msg_ids.has_key(msg_id):
-                print "Message %s is a duplicate of %s and %s be marked as deleted" % (
-                               mnum,    msg_ids[msg_id], options.dry_run and "would" or "will")
-                if options.verbose:
-                    print "Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date'])
-                msgs_to_delete.append(mnum)
-            else:
-                msg_ids[msg_id] = mnum
+            if options.verbose:
+                print "Checking message",mnum
+            msg_id = get_message_id(mp, options.use_checksum)
+            if msg_id:
+                if msg_ids.has_key(msg_id):
+                    print "Message %s is a duplicate of %s and %s be marked as deleted" % (
+                                   mnum,    msg_ids[msg_id], options.dry_run and "would" or "will")
+                    if options.verbose:
+                        print "Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date'])
+                    msgs_to_delete.append(mnum)
+                else:
+                    msg_ids[msg_id] = mnum
         
         if len(msgs_to_delete) == 0:
             print "No duplicates were found"
