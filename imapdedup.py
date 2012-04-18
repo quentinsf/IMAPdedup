@@ -170,8 +170,13 @@ def main():
                 print "If you had not selected the 'dry-run' option,\nthese messages would now be marked as 'deleted'."
             else:
                 print "Marking messages as deleted..."
-                msg_ids = ','.join(msgs_to_delete)
-                resp = check_response(server.store(msg_ids, '+FLAGS', r'(\Deleted)'))
+                chunkSize=30
+                if options.verbose: print "(in batches of %d)" % chunkSize
+                for i in xrange(0, len(msgs_to_delete), chunkSize):
+                    msg_ids = ','.join(msgs_to_delete[i:i+chunkSize])
+                    resp = check_response(server.store(msg_ids, '+FLAGS', r'(\Deleted)'))
+                    if options.verbose:
+                        print "Batch starting at item %d marked." % i
                 print "Confirming new numbers..."
                 deleted = check_response(server.search(None, 'DELETED'))[0].split()
                 numdeleted = len(deleted)
