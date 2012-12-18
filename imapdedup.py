@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 # 
 #  imapdedup.py
 #
@@ -77,26 +77,38 @@ def parse_list_response(line):
 
 def get_message_id(parsed_message, options_use_checksum = False):
     """
-    Return the Message-ID header, if it exists, or a checksum of 
-    From,To,Date and Subject, if not and if the user has allowed that.
-    Otherwise, print a warning.
+    If user specified, use md5 hash of From,To,Cc,Bcc,Date and Subject as message id
+    to aggressively prune message. For more safety, user should first do a dry run,
+    review them before deletion. Although unlikely but md5 is not collision-free either.
+
+    Otherwise use the Message-ID header. Print a warning if the Message-ID header is not exist.
     """
-    msg_id = parsed_message['Message-ID']
-    if not msg_id:
-        if options_use_checksum:
-            md5 = hashlib.md5()
-            md5.update("From:"    + str(parsed_message['From']))
-            md5.update("To:"      + str(parsed_message['To']))
-            md5.update("Subject:" + str(parsed_message['Subject']))
-            md5.update("Date:"    + str(parsed_message['Date']))
-            msg_id = md5.hexdigest()
-        else:
+    if options_use_checksum:
+        md5 = hashlib.md5()
+        md5.update("From:"    + str(parsed_message['From']))
+        md5.update("To:"      + str(parsed_message['To']))
+        md5.update("Subject:" + str(parsed_message['Subject']))
+        md5.update("Date:"    + str(parsed_message['Date']))
+        md5.update("Cc:"    + str(parsed_message['Cc']))
+        md5.update("Bcc:"    + str(parsed_message['Bcc']))
+        msg_id = md5.hexdigest()
+    else:
+        msg_id = parsed_message['Message-ID']
+        if not msg_id:
             print "Message '%s' dated '%s' has no Message-ID header." % (
                 parsed_message['Subject'], parsed_message['Date'])
             print "You might want to use the -c option."
             return None
     return msg_id
 
+def print_message_info(parsed_message):
+    print "From: ", parsed_message['From']
+    print "To: ", parsed_message['To']
+    print "Cc: ", parsed_message['Cc']
+    print "Bcc: ", parsed_message['Bcc']
+    print "Subject: ", parsed_message['Subject']
+    print "Date: ", parsed_message['Date']
+    print
 
 # This actually does the work
 def main():
@@ -143,12 +155,14 @@ def main():
         p = Parser()
         msg_ids = {}
         msgs_to_delete = []
+        msg_map = {}
         for mnum in msgnums:
             m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
             mp = p.parsestr(m[0][1])
             if options.verbose:
                 print "Checking message",mnum
             msg_id = get_message_id(mp, options.use_checksum)
+            msg_map[mnum] = mp
             if msg_id:
                 if msg_ids.has_key(msg_id):
                     print "Message %s is a duplicate of %s and %s be marked as deleted" % (
@@ -163,8 +177,11 @@ def main():
             print "No duplicates were found"
             
         else:
-            print "These are the duplicate message numbers:"
-            print ' '.join(msgs_to_delete)
+##            print "These are the duplicate message numbers:"
+##            print ' '.join(msgs_to_delete)
+            print "These are the duplicate message: "
+            for mnum in msgs_to_delete:
+                print_message_info(msg_map[mnum])
         
             if options.dry_run:
                 print "If you had not selected the 'dry-run' option,\nthese messages would now be marked as 'deleted'."
