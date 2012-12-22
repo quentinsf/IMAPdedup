@@ -3,7 +3,7 @@
 #  imapdedup.py
 #
 #  Looks for duplicate messages in an IMAP mailbox and removes all but the first.
-#  Comparison is purely based on Message-ID header.
+#  Comparison is normally based on the Message-ID header.
 #
 #  Default behaviour is purely to mark the duplicates as deleted.  Some mail clients
 #  will allow you to view these and undelete them if you change your mind.
@@ -34,7 +34,7 @@ from email.parser import Parser
 
 # IMAP responses should normally begin 'OK' - we strip that off
 def check_response(resp):
-    status,value = resp
+    status, value = resp
     if status !='OK':
         sys.stderr.write("Error: got '%s' response: " % status)
     return value
@@ -51,8 +51,8 @@ def get_arguments():
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="Verbose mode")
     parser.add_option("-n", "--dry-run", dest="dry_run", action="store_true", 
                         help="Don't actually do anything, just report what would be done")
-    parser.add_option("-c","--checksum", dest="use_checksum", action="store_true", 
-                        help="If the message has no Message-ID header, use a checksum of From, To, Date and Subject")
+    parser.add_option("-c", "--checksum", dest="use_checksum", action="store_true", 
+                        help="Use a checksum of several mail headers, instead of the Message-ID")
     parser.add_option("-l", "--list", dest="just_list", action="store_true", 
                                             help="Just list mailboxes")
 
@@ -79,9 +79,9 @@ def get_message_id(parsed_message, options_use_checksum = False):
     """
     If user specified, use md5 hash of From,To,Cc,Bcc,Date and Subject as message id
     to aggressively prune message. For more safety, user should first do a dry run,
-    review them before deletion. Although unlikely but md5 is not collision-free either.
+    reviewing them before deletion. Problems are unlikely, but md5 is not collision-free.
 
-    Otherwise use the Message-ID header. Print a warning if the Message-ID header is not exist.
+    Otherwise use the Message-ID header. Print a warning if the Message-ID header does not exist.
     """
     if options_use_checksum:
         md5 = hashlib.md5()
@@ -115,15 +115,15 @@ def main():
     options, args = get_arguments()
     
     if options.ssl:
-        serverclass=imaplib.IMAP4_SSL
+        serverclass = imaplib.IMAP4_SSL
     else:
-        serverclass=imaplib.IMAP4
+        serverclass = imaplib.IMAP4
     
     if options.port:
-        server=serverclass(options.server, options.port)
+        server = serverclass(options.server, options.port)
     else:
         # Use the default, which will be different depending on SSL choice
-        server=serverclass(options.server)
+        server = serverclass(options.server)
     
     try:
         server.login(options.user, options.password)
@@ -150,7 +150,7 @@ def main():
         numdeleted = len(deleted)
         print "%s message(s) currently marked as deleted" % (numdeleted or "No")
         msgnums = check_response(server.search(None, 'UNDELETED'))[0].split()
-        print len(msgnums),"others."        
+        print len(msgnums), "others."        
         if options.verbose: print "Reading the others..."
         p = Parser()
         msg_ids = {}
@@ -160,7 +160,7 @@ def main():
             m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
             mp = p.parsestr(m[0][1])
             if options.verbose:
-                print "Checking message",mnum
+                print "Checking message", mnum
             msg_id = get_message_id(mp, options.use_checksum)
             msg_map[mnum] = mp
             if msg_id:
@@ -177,9 +177,7 @@ def main():
             print "No duplicates were found"
             
         else:
-##            print "These are the duplicate message numbers:"
-##            print ' '.join(msgs_to_delete)
-            print "These are the duplicate message: "
+            print "These are the duplicate messages: "
             for mnum in msgs_to_delete:
                 print_message_info(msg_map[mnum])
         
@@ -187,18 +185,18 @@ def main():
                 print "If you had not selected the 'dry-run' option,\nthese messages would now be marked as 'deleted'."
             else:
                 print "Marking messages as deleted..."
-                chunkSize=30
+                chunkSize = 30
                 if options.verbose: print "(in batches of %d)" % chunkSize
                 for i in xrange(0, len(msgs_to_delete), chunkSize):
-                    msg_ids = ','.join(msgs_to_delete[i:i+chunkSize])
-                    resp = check_response(server.store(msg_ids, '+FLAGS', r'(\Deleted)'))
+                    msg_ids = ','.join(msgs_to_delete[i:i + chunkSize])
+                    check_response(server.store(msg_ids, '+FLAGS', r'(\Deleted)'))
                     if options.verbose:
                         print "Batch starting at item %d marked." % i
                 print "Confirming new numbers..."
                 deleted = check_response(server.search(None, 'DELETED'))[0].split()
                 numdeleted = len(deleted)
                 undeleted = check_response(server.search(None, 'UNDELETED'))[0].split()
-                numundel= len(undeleted)
+                numundel = len(undeleted)
                 print "There are now %d messages marked as deleted and %d others." % (numdeleted, numundel)
                 
         server.close()
@@ -206,6 +204,6 @@ def main():
         server.logout()
         
         
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
     
