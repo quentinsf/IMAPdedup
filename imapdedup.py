@@ -1,8 +1,8 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2
 # 
 #  imapdedup.py
 #
-#  Looks for duplicate messages in an IMAP mailbox and removes all but the first.
+#  Looks for duplicate messages in a set of IMAP mailboxes and removes all but the first.
 #  Comparison is normally based on the Message-ID header.
 #
 #  Default behaviour is purely to mark the duplicates as deleted.  Some mail clients
@@ -42,7 +42,7 @@ def check_response(resp):
 def get_arguments():
     # Get arguments and create link to server
     from optparse import OptionParser
-    parser = OptionParser(usage="%prog [options] <mailboxname>")
+    parser = OptionParser(usage="%prog [options] <mailboxname> [<mailboxname> ...]")
     parser.add_option("-s", "--server",dest='server',help='IMAP server')
     parser.add_option("-p", "--port",  dest='port',  help='IMAP server port', type='int')
     parser.add_option("-x", "--ssl",   dest='ssl',   action="store_true", help='Use SSL')
@@ -59,12 +59,12 @@ def get_arguments():
     parser.set_defaults(verbose=False, ssl=False, dry_run=False, just_list=False)
     (options, args) = parser.parse_args()
     if (not options.server) or (not options.user):
-        sys.stderr.write("\nError: Must specify mailbox, server, user and password.\n\n")
+        sys.stderr.write("\nError: Must specify server, user, password and at least one mailbox.\n\n")
         parser.print_help()
         sys.exit(1)
     if not options.password:
         options.password = getpass.getpass()
-        
+
     return (options, args)
 
 # Thanks to http://www.doughellmann.com/PyMOTW/imaplib/
@@ -142,62 +142,64 @@ def main():
     if len(args) == 0:
         sys.stderr.write("\nError: Must specify mailbox\n")
         sys.exit(1)
-    mbox = args[0]
+    # iterate through a set of named mailboxes and delete the later messages discovered
     try:
-        msgs = check_response(server.select(mbox, options.dry_run))[0]
-        print "There are %d messages in %s." % (int(msgs), mbox)
-        deleted = check_response(server.search(None, 'DELETED'))[0].split()
-        numdeleted = len(deleted)
-        print "%s message(s) currently marked as deleted" % (numdeleted or "No")
-        msgnums = check_response(server.search(None, 'UNDELETED'))[0].split()
-        print len(msgnums), "others."        
-        if options.verbose: print "Reading the others..."
-        p = Parser()
-        msg_ids = {}
-        msgs_to_delete = []
-        msg_map = {}
-        for mnum in msgnums:
-            m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
-            mp = p.parsestr(m[0][1])
-            if options.verbose:
-                print "Checking message", mnum
-            msg_id = get_message_id(mp, options.use_checksum)
-            msg_map[mnum] = mp
-            if msg_id:
-                if msg_ids.has_key(msg_id):
-                    print "Message %s is a duplicate of %s and %s be marked as deleted" % (
-                                   mnum,    msg_ids[msg_id], options.dry_run and "would" or "will")
-                    if options.verbose:
-                        print "Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date'])
-                    msgs_to_delete.append(mnum)
-                else:
-                    msg_ids[msg_id] = mnum
-        
-        if len(msgs_to_delete) == 0:
-            print "No duplicates were found"
+        p = Parser() # can be the same for all mailboxes
+        msg_ids = {} # should be the same across all mailboxes, stores the list of previously seen message IDs
+        for mbox in args:
+            msgs_to_delete = [] # should be reset for each mbox
+            msg_map = {} # should be reset for each mbox
+            msgs = check_response(server.select(mbox, options.dry_run))[0]
+            print "There are %d messages in %s." % (int(msgs), mbox)
+            deleted = check_response(server.search(None, 'DELETED'))[0].split()
+            numdeleted = len(deleted)
+            print "%s message(s) currently marked as deleted in %s" % (numdeleted or "No", mbox)
+            msgnums = check_response(server.search(None, 'UNDELETED'))[0].split()
+            print len(msgnums), "others in", mbox
+            if options.verbose: print "Reading the others..."
+            for mnum in msgnums:
+                m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
+                mp = p.parsestr(m[0][1])
+                if options.verbose:
+                    print "Checking message", mbox, mnum
+                msg_id = get_message_id(mp, options.use_checksum)
+                msg_map[mnum] = mp
+                if msg_id:
+                    if msg_ids.has_key(msg_id):
+                        print "Message %s_%s is a duplicate of %s and %s be marked as deleted" % (
+                                       mbox, mnum, msg_ids[msg_id], options.dry_run and "would" or "will")
+                        if options.verbose:
+                            print "Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date'])
+                        msgs_to_delete.append(mnum)
+                    else:
+                        msg_ids[msg_id] = mbox + '_' + mnum
             
-        else:
-            print "These are the duplicate messages: "
-            for mnum in msgs_to_delete:
-                print_message_info(msg_map[mnum])
-        
-            if options.dry_run:
-                print "If you had not selected the 'dry-run' option,\nthese messages would now be marked as 'deleted'."
+            if len(msgs_to_delete) == 0:
+                print "No duplicates were found in", mbox
+                
             else:
-                print "Marking messages as deleted..."
-                chunkSize = 30
-                if options.verbose: print "(in batches of %d)" % chunkSize
-                for i in xrange(0, len(msgs_to_delete), chunkSize):
-                    msg_ids = ','.join(msgs_to_delete[i:i + chunkSize])
-                    check_response(server.store(msg_ids, '+FLAGS', r'(\Deleted)'))
-                    if options.verbose:
-                        print "Batch starting at item %d marked." % i
-                print "Confirming new numbers..."
-                deleted = check_response(server.search(None, 'DELETED'))[0].split()
-                numdeleted = len(deleted)
-                undeleted = check_response(server.search(None, 'UNDELETED'))[0].split()
-                numundel = len(undeleted)
-                print "There are now %d messages marked as deleted and %d others." % (numdeleted, numundel)
+                if options.verbose:
+                    print "These are the duplicate messages: "
+                    for mnum in msgs_to_delete:
+                        print_message_info(msg_map[mnum])
+            
+                if options.dry_run:
+                    print "If you had not selected the 'dry-run' option,\nthese messages would now be marked as 'deleted'."
+                else:
+                    print "Marking messages as deleted..."
+                    chunkSize = 30
+                    if options.verbose: print "(in batches of %d)" % chunkSize
+                    for i in xrange(0, len(msgs_to_delete), chunkSize):
+                        message_ids = ','.join(msgs_to_delete[i:i + chunkSize])
+                        check_response(server.store(message_ids, '+FLAGS', r'(\Deleted)'))
+                        if options.verbose:
+                            print "Batch starting at item %d marked." % i
+                    print "Confirming new numbers..."
+                    deleted = check_response(server.search(None, 'DELETED'))[0].split()
+                    numdeleted = len(deleted)
+                    undeleted = check_response(server.search(None, 'UNDELETED'))[0].split()
+                    numundel = len(undeleted)
+                    print "There are now %d messages marked as deleted and %d others in %s." % (numdeleted, numundel, mbox)
                 
         server.close()
     finally:
