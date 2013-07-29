@@ -1,4 +1,4 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python
 # 
 #  imapdedup.py
 #
@@ -28,8 +28,13 @@
 # 
 
 
-import sys, getpass, re
-import imaplib, hashlib
+import sys
+import getpass
+import re
+import imaplib
+import hashlib
+import socket
+
 from email.parser import Parser
 
 # IMAP responses should normally begin 'OK' - we strip that off
@@ -119,11 +124,16 @@ def main():
     else:
         serverclass = imaplib.IMAP4
     
-    if options.port:
-        server = serverclass(options.server, options.port)
-    else:
-        # Use the default, which will be different depending on SSL choice
-        server = serverclass(options.server)
+    try:
+        if options.port:
+            server = serverclass(options.server, options.port)
+        else:
+            # Use the default, which will be different depending on SSL choice
+            server = serverclass(options.server)
+    except socket.error, e:
+        sys.stderr.write("\nFailed to connect to server. Might be host, port or SSL settings?\n")
+        sys.stderr.write("%s\n\n" % e)
+        sys.exit(1)
     
     try:
         server.login(options.user, options.password)
@@ -162,6 +172,9 @@ def main():
                 mp = p.parsestr(m[0][1])
                 if options.verbose:
                     print "Checking message", mbox, mnum
+                else:
+                    if ((int(mnum) % 100) == 0):
+                        print mnum, "message(s) in", mbox, "processed"
                 msg_id = get_message_id(mp, options.use_checksum)
                 msg_map[mnum] = mp
                 if msg_id:
