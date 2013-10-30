@@ -197,9 +197,9 @@ def main():
                         print_message_info(msg_map[mnum])
             
                 if options.dry_run:
-                    print "If you had not selected the 'dry-run' option,\nthese messages would now be marked as 'deleted'."
+                    print "If you had not selected the 'dry-run' option,\n%i messages would now be marked as 'deleted'." % (len(msgs_to_delete))
                 else:
-                    print "Marking messages as deleted..."
+                    print "Marking %i messages as deleted..." % (len(msgs_to_delete))
                     chunkSize = 30
                     if options.verbose: print "(in batches of %d)" % chunkSize
                     for i in xrange(0, len(msgs_to_delete), chunkSize):
