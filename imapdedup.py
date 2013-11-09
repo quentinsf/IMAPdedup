@@ -34,8 +34,7 @@ import re
 import imaplib
 import hashlib
 import socket
-
-from email.parser import Parser
+import email.parser
 
 # IMAP responses should normally begin 'OK' - we strip that off
 def check_response(resp):
@@ -58,6 +57,8 @@ def get_arguments():
                         help="Don't actually do anything, just report what would be done")
     parser.add_option("-c", "--checksum", dest="use_checksum", action="store_true", 
                         help="Use a checksum of several mail headers, instead of the Message-ID")
+    parser.add_option("-m", "--checksum-with-id", dest="use_id_in_checksum", action="store_true", 
+                        help="Include the Message-ID (if any) in the -c checksum.")
     parser.add_option("-l", "--list", dest="just_list", action="store_true", 
                                             help="Just list mailboxes")
 
@@ -80,11 +81,15 @@ def parse_list_response(line):
     mailbox_name = mailbox_name.strip('"')
     return (flags, delimiter, mailbox_name)
 
-def get_message_id(parsed_message, options_use_checksum = False):
+def get_message_id(parsed_message, 
+                   options_use_checksum = False, 
+                   options_use_id_in_checksum = False):
     """
-    If user specified, use md5 hash of From,To,Cc,Bcc,Date and Subject as message id
-    to aggressively prune message. For more safety, user should first do a dry run,
-    reviewing them before deletion. Problems are unlikely, but md5 is not collision-free.
+    If user specified, use md5 hash of several headers as message id.
+    
+
+    For more safety, user should first do a dry run, reviewing them before deletion. 
+    Problems are extremely unlikely, but md5 is not collision-free.
 
     Otherwise use the Message-ID header. Print a warning if the Message-ID header does not exist.
     """
@@ -96,7 +101,10 @@ def get_message_id(parsed_message, options_use_checksum = False):
         md5.update("Date:"    + str(parsed_message['Date']))
         md5.update("Cc:"    + str(parsed_message['Cc']))
         md5.update("Bcc:"    + str(parsed_message['Bcc']))
+        if options_use_id_in_checksum:
+            md5.update("Message-ID:"    + str(parsed_message.get("Message-ID","")))
         msg_id = md5.hexdigest()
+        print msg_id
     else:
         msg_id = parsed_message['Message-ID']
         if not msg_id:
@@ -135,6 +143,10 @@ def main():
         sys.stderr.write("%s\n\n" % e)
         sys.exit(1)
     
+    if options.use_id_in_checksum and not options.use_checksum:
+        sys.stderr.write("\nError: If you use -m you must also use -c.\n")
+        sys.exit(1)
+
     try:
         server.login(options.user, options.password)
     except:
@@ -152,41 +164,61 @@ def main():
     if len(args) == 0:
         sys.stderr.write("\nError: Must specify mailbox\n")
         sys.exit(1)
-    # iterate through a set of named mailboxes and delete the later messages discovered
+
+    # OK - let's get started.
+    # Iterate through a set of named mailboxes and delete the later messages discovered.
     try:
-        p = Parser() # can be the same for all mailboxes
-        msg_ids = {} # should be the same across all mailboxes, stores the list of previously seen message IDs
+        p = email.parser.Parser() # can be the same for all mailboxes
+        # Create a list of previously seen message IDs, in any mailbox
+        msg_ids = {} 
         for mbox in args:
             msgs_to_delete = [] # should be reset for each mbox
             msg_map = {} # should be reset for each mbox
+
+            # Select the mailbox
             msgs = check_response(server.select(mbox, options.dry_run))[0]
             print "There are %d messages in %s." % (int(msgs), mbox)
+            
+            # Check how many messages are already marked 'deleted'...
             deleted = check_response(server.search(None, 'DELETED'))[0].split()
             numdeleted = len(deleted)
             print "%s message(s) currently marked as deleted in %s" % (numdeleted or "No", mbox)
+
+            # ...and get a list of the ones that aren't deleted. That's what we'll use.
             msgnums = check_response(server.search(None, 'UNDELETED'))[0].split()
             print len(msgnums), "others in", mbox
+
             if options.verbose: print "Reading the others..."
             for mnum in msgnums:
+                # Get the ID and header of each message
                 m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
+                # and parse them.
                 mp = p.parsestr(m[0][1])
                 if options.verbose:
                     print "Checking message", mbox, mnum
                 else:
                     if ((int(mnum) % 100) == 0):
                         print mnum, "message(s) in", mbox, "processed"
-                msg_id = get_message_id(mp, options.use_checksum)
+
+                # Record the message-ID header (or generate one from other headers)
+                msg_id = get_message_id(mp, options.use_checksum, options.use_id_in_checksum)
                 msg_map[mnum] = mp
                 if msg_id:
-                    if msg_ids.has_key(msg_id):
+                    # If we've seen this message before, record it as one to be 
+                    # deleted in this mailbox.
+                    if msg_id in msg_ids:
                         print "Message %s_%s is a duplicate of %s and %s be marked as deleted" % (
                                        mbox, mnum, msg_ids[msg_id], options.dry_run and "would" or "will")
                         if options.verbose:
                             print "Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date'])
                         msgs_to_delete.append(mnum)
+                    # Otherwise record the fact that we've seen it
                     else:
                         msg_ids[msg_id] = mbox + '_' + mnum
             
+            # OK - we've been through this mailbox, and msgs_to_delete holds
+            # a list of the duplicates we've found.
+
             if len(msgs_to_delete) == 0:
                 print "No duplicates were found in", mbox
                 
@@ -200,6 +232,7 @@ def main():
                     print "If you had not selected the 'dry-run' option,\nthese messages would now be marked as 'deleted'."
                 else:
                     print "Marking messages as deleted..."
+                    # Deleting messages one at a time can be slow if there are many, so we batch them up
                     chunkSize = 30
                     if options.verbose: print "(in batches of %d)" % chunkSize
                     for i in xrange(0, len(msgs_to_delete), chunkSize):
