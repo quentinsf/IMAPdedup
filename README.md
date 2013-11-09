@@ -32,15 +32,15 @@ but the key options are described below.  You will of course need the address of
 
 Try starting with something harmless like:
 
-    ./imapdedup.py -s imap.myisp.com -u myuserid -l
+    ./imapdedup.py -s imap.myisp.com -u myuserid -x -l
 
-which prompts you for your password and then lists the mailboxes on the server. You can then use the mailbox names it returns in other commands.
+which prompts you for your password and then lists the mailboxes on the server. You can then use the mailbox names it returns in other commands. (The `-x` option specifies that the connection should use SSL, which is generally the case nowadays. If this doesn't work, you can leave it out, but you should probably also complain to your email provider because they aren't providing sufficient security!)
 
 It's worth trying getting this list at least once because different mail servers structure their folders differently: mine thinks of all the folders as being 'within' the inbox, for example, so they're called things like 'INBOX.Drafts','INBOX.Sent', and those are the names I need to use when talking to the server.
 
 Once you know your folder names, you can run something like
 
-    ./imapdedup.py -s imap.myisp.com -u myuserid -n INBOX.Test
+    ./imapdedup.py -s imap.myisp.com -u myuserid -x -n INBOX.Test
 
 and the script will tell you what it would do to your *INBOX/Test* folder. 
 
