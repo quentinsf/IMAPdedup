@@ -8,7 +8,7 @@
 #  Default behaviour is purely to mark the duplicates as deleted.  Some mail clients
 #  will allow you to view these and undelete them if you change your mind.
 #  
-#  Copyright (c) 2010 Quentin Stafford-Fraser.   All rights reserved, subject to the following:
+#  Copyright (c) 2013 Quentin Stafford-Fraser.   All rights reserved, subject to the following:
 #
 # 
 #   This is free software; you can redistribute it and/or modify
@@ -229,9 +229,10 @@ def main():
                         print_message_info(msg_map[mnum])
             
                 if options.dry_run:
-                    print "If you had not selected the 'dry-run' option,\nthese messages would now be marked as 'deleted'."
+                    print "If you had not selected the 'dry-run' option,\n%i messages would now be marked as 'deleted'." % (len(msgs_to_delete))
+
                 else:
-                    print "Marking messages as deleted..."
+                    print "Marking %i messages as deleted..." % (len(msgs_to_delete))
                     # Deleting messages one at a time can be slow if there are many, so we batch them up
                     chunkSize = 30
                     if options.verbose: print "(in batches of %d)" % chunkSize
