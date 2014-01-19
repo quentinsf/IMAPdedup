@@ -95,33 +95,33 @@ def get_message_id(parsed_message,
     """
     if options_use_checksum:
         md5 = hashlib.md5()
-        md5.update("From:"    + str(parsed_message['From']))
-        md5.update("To:"      + str(parsed_message['To']))
-        md5.update("Subject:" + str(parsed_message['Subject']))
-        md5.update("Date:"    + str(parsed_message['Date']))
-        md5.update("Cc:"    + str(parsed_message['Cc']))
-        md5.update("Bcc:"    + str(parsed_message['Bcc']))
+        md5.update(("From:"    + parsed_message['From']).encode('utf-8'))
+        md5.update(("To:"      + parsed_message['To']).encode('utf-8'))
+        md5.update(("Subject:" + parsed_message['Subject']).encode('utf-8'))
+        md5.update(("Date:"    + parsed_message['Date']).encode('utf-8'))
+        md5.update(("Cc:"      + parsed_message.get('Cc','')).encode('utf-8'))
+        md5.update(("Bcc:"     + parsed_message.get('Bcc','')).encode('utf-8'))
         if options_use_id_in_checksum:
-            md5.update("Message-ID:"    + str(parsed_message.get("Message-ID","")))
+            md5.update(("Message-ID:"    + parsed_message.get("Message-ID","")).encode('utf-8'))
         msg_id = md5.hexdigest()
-        print msg_id
+        print(msg_id)
     else:
         msg_id = parsed_message['Message-ID']
         if not msg_id:
-            print "Message '%s' dated '%s' has no Message-ID header." % (
-                parsed_message['Subject'], parsed_message['Date'])
-            print "You might want to use the -c option."
+            print("Message '%s' dated '%s' has no Message-ID header." % (
+                parsed_message['Subject'], parsed_message['Date']))
+            print("You might want to use the -c option.")
             return None
     return msg_id
 
 def print_message_info(parsed_message):
-    print "From: ", parsed_message['From']
-    print "To: ", parsed_message['To']
-    print "Cc: ", parsed_message['Cc']
-    print "Bcc: ", parsed_message['Bcc']
-    print "Subject: ", parsed_message['Subject']
-    print "Date: ", parsed_message['Date']
-    print
+    print("From: ", parsed_message['From'])
+    print("To: ", parsed_message['To'])
+    print("Cc: ", parsed_message['Cc'])
+    print("Bcc: ", parsed_message['Bcc'])
+    print("Subject: ", parsed_message['Subject'])
+    print("Date: ", parsed_message['Date'])
+    print()
 
 # This actually does the work
 def main():
@@ -138,7 +138,7 @@ def main():
         else:
             # Use the default, which will be different depending on SSL choice
             server = serverclass(options.server)
-    except socket.error, e:
+    except socket.error as e:
         sys.stderr.write("\nFailed to connect to server. Might be host, port or SSL settings?\n")
         sys.stderr.write("%s\n\n" % e)
         sys.exit(1)
@@ -146,6 +146,11 @@ def main():
     if options.use_id_in_checksum and not options.use_checksum:
         sys.stderr.write("\nError: If you use -m you must also use -c.\n")
         sys.exit(1)
+
+    if 'STARTTLS' in server.capabilities and server.starttls:
+        server.starttls()
+    elif not options.ssl:
+        sys.stderr.write('\nWarning: Unencrypted connection\n')
 
     try:
         server.login(options.user, options.password)
@@ -156,9 +161,10 @@ def main():
     # List mailboxes option
     if options.just_list:
         for mb in check_response(server.list()):
+            mb = mb.decode('utf-7')
             bits = parse_list_response(mb)
             if r'\\Noselect' not in bits[0]:
-                print bits[2]
+                print(bits[2])
         sys.exit()
 
     if len(args) == 0:
@@ -177,28 +183,29 @@ def main():
 
             # Select the mailbox
             msgs = check_response(server.select(mbox, options.dry_run))[0]
-            print "There are %d messages in %s." % (int(msgs), mbox)
+            print("There are %d messages in %s." % (int(msgs), mbox))
             
             # Check how many messages are already marked 'deleted'...
             deleted = check_response(server.search(None, 'DELETED'))[0].split()
             numdeleted = len(deleted)
-            print "%s message(s) currently marked as deleted in %s" % (numdeleted or "No", mbox)
+            print("%s message(s) currently marked as deleted in %s" % (numdeleted or "No", mbox))
 
             # ...and get a list of the ones that aren't deleted. That's what we'll use.
             msgnums = check_response(server.search(None, 'UNDELETED'))[0].split()
-            print len(msgnums), "others in", mbox
+            print(len(msgnums), "others in", mbox)
 
-            if options.verbose: print "Reading the others..."
+            if options.verbose: print("Reading the others...")
             for mnum in msgnums:
+                mnum = mnum.decode('utf-8')
                 # Get the ID and header of each message
                 m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
                 # and parse them.
-                mp = p.parsestr(m[0][1])
+                mp = p.parsestr(m[0][1].decode('utf-8'))
                 if options.verbose:
-                    print "Checking message", mbox, mnum
+                    print("Checking message", mbox, mnum)
                 else:
                     if ((int(mnum) % 100) == 0):
-                        print mnum, "message(s) in", mbox, "processed"
+                        print(mnum, "message(s) in", mbox, "processed")
 
                 # Record the message-ID header (or generate one from other headers)
                 msg_id = get_message_id(mp, options.use_checksum, options.use_id_in_checksum)
@@ -207,10 +214,10 @@ def main():
                     # If we've seen this message before, record it as one to be 
                     # deleted in this mailbox.
                     if msg_id in msg_ids:
-                        print "Message %s_%s is a duplicate of %s and %s be marked as deleted" % (
-                                       mbox, mnum, msg_ids[msg_id], options.dry_run and "would" or "will")
+                        print("Message %s_%s is a duplicate of %s and %s be marked as deleted" % (
+                                       mbox, mnum, msg_ids[msg_id], options.dry_run and "would" or "will"))
                         if options.verbose:
-                            print "Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date'])
+                            print("Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date']))
                         msgs_to_delete.append(mnum)
                     # Otherwise record the fact that we've seen it
                     else:
@@ -220,33 +227,33 @@ def main():
             # a list of the duplicates we've found.
 
             if len(msgs_to_delete) == 0:
-                print "No duplicates were found in", mbox
+                print("No duplicates were found in", mbox)
                 
             else:
                 if options.verbose:
-                    print "These are the duplicate messages: "
+                    print("These are the duplicate messages: ")
                     for mnum in msgs_to_delete:
                         print_message_info(msg_map[mnum])
             
                 if options.dry_run:
-                    print "If you had not selected the 'dry-run' option,\n%i messages would now be marked as 'deleted'." % (len(msgs_to_delete))
+                    print("If you had not selected the 'dry-run' option,\n%i messages would now be marked as 'deleted'." % (len(msgs_to_delete)))
 
                 else:
-                    print "Marking %i messages as deleted..." % (len(msgs_to_delete))
+                    print("Marking %i messages as deleted..." % (len(msgs_to_delete)))
                     # Deleting messages one at a time can be slow if there are many, so we batch them up
                     chunkSize = 30
-                    if options.verbose: print "(in batches of %d)" % chunkSize
-                    for i in xrange(0, len(msgs_to_delete), chunkSize):
+                    if options.verbose: print("(in batches of %d)" % chunkSize)
+                    for i in range(0, len(msgs_to_delete), chunkSize):
                         message_ids = ','.join(msgs_to_delete[i:i + chunkSize])
                         check_response(server.store(message_ids, '+FLAGS', r'(\Deleted)'))
                         if options.verbose:
-                            print "Batch starting at item %d marked." % i
-                    print "Confirming new numbers..."
+                            print("Batch starting at item %d marked." % i)
+                    print("Confirming new numbers...")
                     deleted = check_response(server.search(None, 'DELETED'))[0].split()
                     numdeleted = len(deleted)
                     undeleted = check_response(server.search(None, 'UNDELETED'))[0].split()
                     numundel = len(undeleted)
-                    print "There are now %d messages marked as deleted and %d others in %s." % (numdeleted, numundel, mbox)
+                    print("There are now %d messages marked as deleted and %d others in %s." % (numdeleted, numundel, mbox))
                 
         server.close()
     finally:
