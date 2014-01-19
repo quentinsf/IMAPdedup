@@ -156,6 +156,7 @@ def main():
     # List mailboxes option
     if options.just_list:
         for mb in check_response(server.list()):
+            mb = mb.decode('utf-7')
             bits = parse_list_response(mb)
             if r'\\Noselect' not in bits[0]:
                 print(bits[2])
@@ -190,10 +191,11 @@ def main():
 
             if options.verbose: print("Reading the others...")
             for mnum in msgnums:
+                mnum = mnum.decode('utf-8')
                 # Get the ID and header of each message
                 m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
                 # and parse them.
-                mp = p.parsestr(m[0][1])
+                mp = p.parsestr(m[0][1].decode('utf-8'))
                 if options.verbose:
                     print("Checking message", mbox, mnum)
                 else:
