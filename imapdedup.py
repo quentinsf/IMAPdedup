@@ -147,6 +147,11 @@ def main():
         sys.stderr.write("\nError: If you use -m you must also use -c.\n")
         sys.exit(1)
 
+    if 'STARTTLS' in server.capabilities:
+        server.starttls()
+    elif not options.ssl:
+        sys.stderr.write('\nWarning: Unencrypted connection\n')
+
     try:
         server.login(options.user, options.password)
     except:
