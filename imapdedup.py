@@ -188,33 +188,41 @@ def main():
             msgnums = check_response(server.search(None, 'UNDELETED'))[0].split()
             print len(msgnums), "others in", mbox
 
-            if options.verbose: print "Reading the others..."
-            for mnum in msgnums:
-                # Get the ID and header of each message
-                m = check_response(server.fetch(mnum, '(UID RFC822.HEADER)'))
-                # and parse them.
-                mp = p.parsestr(m[0][1])
-                if options.verbose:
-                    print "Checking message", mbox, mnum
-                else:
-                    if ((int(mnum) % 100) == 0):
-                        print mnum, "message(s) in", mbox, "processed"
+            chunkSize = 100
+            if options.verbose: print "Reading the others... (in batches of %d)" % chunkSize
 
-                # Record the message-ID header (or generate one from other headers)
-                msg_id = get_message_id(mp, options.use_checksum, options.use_id_in_checksum)
-                msg_map[mnum] = mp
-                if msg_id:
-                    # If we've seen this message before, record it as one to be 
-                    # deleted in this mailbox.
-                    if msg_id in msg_ids:
-                        print "Message %s_%s is a duplicate of %s and %s be marked as deleted" % (
-                                       mbox, mnum, msg_ids[msg_id], options.dry_run and "would" or "will")
-                        if options.verbose:
-                            print "Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date'])
-                        msgs_to_delete.append(mnum)
-                    # Otherwise record the fact that we've seen it
-                    else:
-                        msg_ids[msg_id] = mbox + '_' + mnum
+            for i in xrange(0, len(msgnums), chunkSize):
+                msgnums_in_chunk = msgnums[i:i + chunkSize]
+                message_ids = ','.join(msgnums_in_chunk)
+                # Get the header of each message
+                ms = check_response(server.fetch(message_ids, '(RFC822.HEADER)'))
+                if options.verbose:
+                    print "Batch starting at item %d" % i
+
+                # and parse them.
+                for ci in range(0, len(msgnums_in_chunk)):
+                    mnum = msgnums_in_chunk[ci]
+                    mp = p.parsestr(ms[ci * 2][1])
+                    if options.verbose:
+                        print "Checking message", mbox, mnum
+
+                    # Record the message-ID header (or generate one from other headers)
+                    msg_id = get_message_id(mp, options.use_checksum, options.use_id_in_checksum)
+                    msg_map[mnum] = mp
+                    if msg_id:
+                        # If we've seen this message before, record it as one to be
+                        # deleted in this mailbox.
+                        if msg_id in msg_ids:
+                            print "Message %s_%s is a duplicate of %s and %s be marked as deleted" % (
+                                           mbox, mnum, msg_ids[msg_id], options.dry_run and "would" or "will")
+                            if options.verbose:
+                                print "Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date'])
+                            msgs_to_delete.append(mnum)
+                        # Otherwise record the fact that we've seen it
+                        else:
+                            msg_ids[msg_id] = mbox + '_' + mnum
+
+                print min(len(msgnums), i + chunkSize), "message(s) in", mbox, "processed"
             
             # OK - we've been through this mailbox, and msgs_to_delete holds
             # a list of the duplicates we've found.
