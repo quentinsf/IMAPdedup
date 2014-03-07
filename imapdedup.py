@@ -115,13 +115,13 @@ def get_message_id(parsed_message,
     return msg_id
 
 def print_message_info(parsed_message):
-    print("From: ", parsed_message['From'])
-    print("To: ", parsed_message['To'])
-    print("Cc: ", parsed_message['Cc'])
-    print("Bcc: ", parsed_message['Bcc'])
-    print("Subject: ", parsed_message['Subject'])
-    print("Date: ", parsed_message['Date'])
-    print()
+    print("From: " +    parsed_message.get('From',''))
+    print("To: " +      parsed_message.get('To',''))
+    print("Cc: " +      parsed_message.get('Cc',''))
+    print("Bcc: " +     parsed_message.get('Bcc',''))
+    print("Subject: " + parsed_message.get('Subject',''))
+    print("Date: " +    parsed_message.get('Date',''))
+    print("")
 
 # This actually does the work
 def main():
@@ -192,7 +192,7 @@ def main():
 
             # ...and get a list of the ones that aren't deleted. That's what we'll use.
             msgnums = check_response(server.search(None, 'UNDELETED'))[0].split()
-            print(len(msgnums), "others in", mbox)
+            print("%s others in %s" % (len(msgnums), mbox))
 
             if options.verbose: print("Reading the others...")
             for mnum in msgnums:
@@ -202,10 +202,10 @@ def main():
                 # and parse them.
                 mp = p.parsestr(m[0][1].decode('utf-8'))
                 if options.verbose:
-                    print("Checking message", mbox, mnum)
+                    print("Checking %s message %s" % (mbox, mnum))
                 else:
                     if ((int(mnum) % 100) == 0):
-                        print(mnum, "message(s) in", mbox, "processed")
+                        print("%s message(s) in %s processed" % (mnum,  mbox))
 
                 # Record the message-ID header (or generate one from other headers)
                 msg_id = get_message_id(mp, options.use_checksum, options.use_id_in_checksum)
@@ -227,7 +227,7 @@ def main():
             # a list of the duplicates we've found.
 
             if len(msgs_to_delete) == 0:
-                print("No duplicates were found in", mbox)
+                print("No duplicates were found in %s" % mbox)
                 
             else:
                 if options.verbose:
@@ -253,7 +253,7 @@ def main():
                     numdeleted = len(deleted)
                     undeleted = check_response(server.search(None, 'UNDELETED'))[0].split()
                     numundel = len(undeleted)
-                    print("There are now %d messages marked as deleted and %d others in %s." % (numdeleted, numundel, mbox))
+                    print("There are now %s messages marked as deleted and %s others in %s." % (numdeleted, numundel, mbox))
                 
         server.close()
     finally:
