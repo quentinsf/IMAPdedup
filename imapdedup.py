@@ -95,14 +95,14 @@ def get_message_id(parsed_message,
     """
     if options_use_checksum:
         md5 = hashlib.md5()
-        md5.update(("From:"    + parsed_message['From']).encode('utf-8'))
-        md5.update(("To:"      + parsed_message['To']).encode('utf-8'))
-        md5.update(("Subject:" + parsed_message['Subject']).encode('utf-8'))
-        md5.update(("Date:"    + parsed_message['Date']).encode('utf-8'))
-        md5.update(("Cc:"      + parsed_message.get('Cc','')).encode('utf-8'))
-        md5.update(("Bcc:"     + parsed_message.get('Bcc','')).encode('utf-8'))
+        md5.update(("From:"    + str(parsed_message['From'])).encode('utf-8'))
+        md5.update(("To:"      + str(parsed_message['To'])).encode('utf-8'))
+        md5.update(("Subject:" + str(parsed_message['Subject'])).encode('utf-8'))
+        md5.update(("Date:"    + str(parsed_message['Date'])).encode('utf-8'))
+        md5.update(("Cc:"      + str(parsed_message.get('Cc',''))).encode('utf-8'))
+        md5.update(("Bcc:"     + str(parsed_message.get('Bcc',''))).encode('utf-8'))
         if options_use_id_in_checksum:
-            md5.update(("Message-ID:"    + parsed_message.get("Message-ID","")).encode('utf-8'))
+            md5.update(("Message-ID:"    + str(parsed_message.get("Message-ID",""))).encode('utf-8'))
         msg_id = md5.hexdigest()
         print(msg_id)
     else:
