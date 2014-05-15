@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# 
+#
 #  imapdedup.py
 #
 #  Looks for duplicate messages in a set of IMAP mailboxes and removes all but the first.
@@ -7,25 +7,25 @@
 #
 #  Default behaviour is purely to mark the duplicates as deleted.  Some mail clients
 #  will allow you to view these and undelete them if you change your mind.
-#  
+#
 #  Copyright (c) 2013 Quentin Stafford-Fraser.   All rights reserved, subject to the following:
 #
-# 
+#
 #   This is free software; you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation; either version 2 of the License, or
 #   (at your option) any later version.
-#   
+#
 #   This software is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
-#   
+#
 #   You should have received a copy of the GNU General Public License
 #   along with this software; if not, write to the Free Software
 #   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
 #   USA.
-# 
+#
 
 
 import sys
@@ -42,7 +42,7 @@ def check_response(resp):
     if status !='OK':
         sys.stderr.write("Error: got '%s' response: " % status)
     return value
-    
+
 def get_arguments():
     # Get arguments and create link to server
     from optparse import OptionParser
@@ -53,13 +53,13 @@ def get_arguments():
     parser.add_option("-u", "--user",  dest='user',  help='IMAP user name')
     parser.add_option("-w", "--password", dest='password',  help='IMAP password (Will prompt if not specified)')
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", help="Verbose mode")
-    parser.add_option("-n", "--dry-run", dest="dry_run", action="store_true", 
+    parser.add_option("-n", "--dry-run", dest="dry_run", action="store_true",
                         help="Don't actually do anything, just report what would be done")
-    parser.add_option("-c", "--checksum", dest="use_checksum", action="store_true", 
+    parser.add_option("-c", "--checksum", dest="use_checksum", action="store_true",
                         help="Use a checksum of several mail headers, instead of the Message-ID")
-    parser.add_option("-m", "--checksum-with-id", dest="use_id_in_checksum", action="store_true", 
+    parser.add_option("-m", "--checksum-with-id", dest="use_id_in_checksum", action="store_true",
                         help="Include the Message-ID (if any) in the -c checksum.")
-    parser.add_option("-l", "--list", dest="just_list", action="store_true", 
+    parser.add_option("-l", "--list", dest="just_list", action="store_true",
                                             help="Just list mailboxes")
 
     parser.set_defaults(verbose=False, ssl=False, dry_run=False, just_list=False)
@@ -81,14 +81,14 @@ def parse_list_response(line):
     mailbox_name = mailbox_name.strip('"')
     return (flags, delimiter, mailbox_name)
 
-def get_message_id(parsed_message, 
-                   options_use_checksum = False, 
+def get_message_id(parsed_message,
+                   options_use_checksum = False,
                    options_use_id_in_checksum = False):
     """
     If user specified, use md5 hash of several headers as message id.
-    
 
-    For more safety, user should first do a dry run, reviewing them before deletion. 
+
+    For more safety, user should first do a dry run, reviewing them before deletion.
     Problems are extremely unlikely, but md5 is not collision-free.
 
     Otherwise use the Message-ID header. Print a warning if the Message-ID header does not exist.
@@ -126,12 +126,12 @@ def print_message_info(parsed_message):
 # This actually does the work
 def main():
     options, args = get_arguments()
-    
+
     if options.ssl:
         serverclass = imaplib.IMAP4_SSL
     else:
         serverclass = imaplib.IMAP4
-    
+
     try:
         if options.port:
             server = serverclass(options.server, options.port)
@@ -142,7 +142,7 @@ def main():
         sys.stderr.write("\nFailed to connect to server. Might be host, port or SSL settings?\n")
         sys.stderr.write("%s\n\n" % e)
         sys.exit(1)
-    
+
     if options.use_id_in_checksum and not options.use_checksum:
         sys.stderr.write("\nError: If you use -m you must also use -c.\n")
         sys.exit(1)
@@ -157,7 +157,7 @@ def main():
     except:
         sys.stderr.write("\nError: Login failed\n")
         sys.exit(1)
-        
+
     # List mailboxes option
     if options.just_list:
         for mb in check_response(server.list()):
@@ -176,7 +176,7 @@ def main():
     try:
         p = email.parser.Parser() # can be the same for all mailboxes
         # Create a list of previously seen message IDs, in any mailbox
-        msg_ids = {} 
+        msg_ids = {}
         for mbox in args:
             msgs_to_delete = [] # should be reset for each mbox
             msg_map = {} # should be reset for each mbox
@@ -184,7 +184,7 @@ def main():
             # Select the mailbox
             msgs = check_response(server.select(mbox, options.dry_run))[0]
             print("There are %d messages in %s." % (int(msgs), mbox))
-            
+
             # Check how many messages are already marked 'deleted'...
             deleted = check_response(server.search(None, 'DELETED'))[0].split()
             numdeleted = len(deleted)
@@ -229,19 +229,19 @@ def main():
                             msg_ids[msg_id] = mbox + '_' + mnum
 
                 print ("%s message(s) in %s processed" % (min(len(msgnums), i + chunkSize), mbox))
-            
+
             # OK - we've been through this mailbox, and msgs_to_delete holds
             # a list of the duplicates we've found.
 
             if len(msgs_to_delete) == 0:
                 print("No duplicates were found in %s" % mbox)
-                
+
             else:
                 if options.verbose:
                     print("These are the duplicate messages: ")
                     for mnum in msgs_to_delete:
                         print_message_info(msg_map[mnum])
-            
+
                 if options.dry_run:
                     print("If you had not selected the 'dry-run' option,\n%i messages would now be marked as 'deleted'." % (len(msgs_to_delete)))
 
@@ -261,12 +261,12 @@ def main():
                     undeleted = check_response(server.search(None, 'UNDELETED'))[0].split()
                     numundel = len(undeleted)
                     print("There are now %s messages marked as deleted and %s others in %s." % (numdeleted, numundel, mbox))
-                
+
         server.close()
     finally:
         server.logout()
-        
-        
+
+
 if __name__ == '__main__':
     main()
-    
+
