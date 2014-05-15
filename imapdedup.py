@@ -65,7 +65,7 @@ def get_arguments():
     parser.set_defaults(verbose=False, ssl=False, dry_run=False, just_list=False)
     (options, args) = parser.parse_args()
     if (not options.server) or (not options.user):
-        sys.stderr.write("\nError: Must specify server, user, password and at least one mailbox.\n\n")
+        sys.stderr.write("\nError: Must specify server, user, and at least one mailbox.\n\n")
         parser.print_help()
         sys.exit(1)
     if not options.password:
