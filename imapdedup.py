@@ -63,7 +63,7 @@ def get_arguments():
                                             help="Just list mailboxes")
 
     parser.set_defaults(verbose=False, ssl=False, dry_run=False, just_list=False)
-    (options, args) = parser.parse_args()
+    (options, mboxes) = parser.parse_args()
     if (not options.server) or (not options.user):
         sys.stderr.write("\nError: Must specify server, user, and at least one mailbox.\n\n")
         parser.print_help()
@@ -71,7 +71,7 @@ def get_arguments():
     if not options.password:
         options.password = getpass.getpass()
 
-    return (options, args)
+    return (options, mboxes)
 
 # Thanks to http://www.doughellmann.com/PyMOTW/imaplib/
 list_response_pattern = re.compile(r'\((?P<flags>.*?)\) "(?P<delimiter>.*)" (?P<name>.*)')
@@ -125,7 +125,7 @@ def print_message_info(parsed_message):
 
 # This actually does the work
 def main():
-    options, args = get_arguments()
+    options, mboxes = get_arguments()
 
     if options.ssl:
         serverclass = imaplib.IMAP4_SSL
@@ -167,7 +167,7 @@ def main():
                 print(bits[2])
         sys.exit()
 
-    if len(args) == 0:
+    if len(mboxes) == 0:
         sys.stderr.write("\nError: Must specify mailbox\n")
         sys.exit(1)
 
@@ -177,7 +177,7 @@ def main():
         p = email.parser.Parser() # can be the same for all mailboxes
         # Create a list of previously seen message IDs, in any mailbox
         msg_ids = {}
-        for mbox in args:
+        for mbox in mboxes:
             msgs_to_delete = [] # should be reset for each mbox
             msg_map = {} # should be reset for each mbox
 
