@@ -43,7 +43,7 @@ def check_response(resp):
         sys.stderr.write("Error: got '%s' response: " % status)
     return value
 
-def get_arguments():
+def get_arguments(args):
     # Get arguments and create link to server
     from optparse import OptionParser
     parser = OptionParser(usage="%prog [options] <mailboxname> [<mailboxname> ...]")
@@ -63,7 +63,7 @@ def get_arguments():
                                             help="Just list mailboxes")
 
     parser.set_defaults(verbose=False, ssl=False, dry_run=False, just_list=False)
-    (options, mboxes) = parser.parse_args()
+    (options, mboxes) = parser.parse_args(args)
     if (not options.server) or (not options.user):
         sys.stderr.write("\nError: Must specify server, user, and at least one mailbox.\n\n")
         parser.print_help()
@@ -124,8 +124,8 @@ def print_message_info(parsed_message):
     print("")
 
 # This actually does the work
-def main():
-    options, mboxes = get_arguments()
+def main(args):
+    options, mboxes = get_arguments(args)
 
     if options.ssl:
         serverclass = imaplib.IMAP4_SSL
@@ -268,5 +268,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
 
