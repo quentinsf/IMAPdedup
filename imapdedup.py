@@ -128,9 +128,7 @@ def print_message_info(parsed_message):
     print("")
 
 # This actually does the work
-def main(args):
-    options, mboxes = get_arguments(args)
-
+def process(options, mboxes):
     if options.ssl:
         serverclass = imaplib.IMAP4_SSL
     else:
@@ -266,6 +264,9 @@ def main(args):
     finally:
         server.logout()
 
+def main(args):
+    options, mboxes = get_arguments(args)
+    process(options, mboxes)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
