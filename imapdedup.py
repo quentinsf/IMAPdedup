@@ -71,6 +71,10 @@ def get_arguments(args):
     if not options.password:
         options.password = getpass.getpass()
 
+    if options.use_id_in_checksum and not options.use_checksum:
+        sys.stderr.write("\nError: If you use -m you must also use -c.\n")
+        sys.exit(1)
+
     return (options, mboxes)
 
 # Thanks to http://www.doughellmann.com/PyMOTW/imaplib/
@@ -141,10 +145,6 @@ def main(args):
     except socket.error as e:
         sys.stderr.write("\nFailed to connect to server. Might be host, port or SSL settings?\n")
         sys.stderr.write("%s\n\n" % e)
-        sys.exit(1)
-
-    if options.use_id_in_checksum and not options.use_checksum:
-        sys.stderr.write("\nError: If you use -m you must also use -c.\n")
         sys.exit(1)
 
     if 'STARTTLS' in server.capabilities and server.starttls:
