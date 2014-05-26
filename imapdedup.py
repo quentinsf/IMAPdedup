@@ -197,7 +197,7 @@ def main():
             chunkSize = 100
             if options.verbose: print ("Reading the others... (in batches of %d)" % chunkSize)
 
-            for i in xrange(0, len(msgnums), chunkSize):
+            for i in range(0, len(msgnums), chunkSize):
                 msgnums_in_chunk = msgnums[i:i + chunkSize]
                 message_ids = ','.join(msgnums_in_chunk)
                 # Get the header of each message
