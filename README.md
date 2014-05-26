@@ -24,6 +24,8 @@ If you want to experiment, create a new folder on your mail server, and copy som
 
 ## Simple use
 
+Note: IMAPdedup expects to run under Python 2. Some work has been done to make it Python-3-compatible, but your mileage may vary!
+
 You can list the full syntax by running 
 
     ./imapdedup.py -h
