@@ -24,7 +24,7 @@ If you want to experiment, create a new folder on your mail server, and copy som
 
 ## Simple use
 
-Note: IMAPdedup expects to run under Python 2. Some work has been done to make it Python-3-compatible, but your mileage may vary!
+*Note: IMAPdedup expects to run under Python 2. Some work has been done to make it Python-3-compatible, but your mileage may vary!*
 
 You can list the full syntax by running 
 
@@ -36,7 +36,7 @@ Try starting with something harmless like:
 
     ./imapdedup.py -s imap.myisp.com -u myuserid -x -l
 
-which prompts you for your password and then lists the mailboxes on the server. You can then use the mailbox names it returns in other commands. (The `-x` option specifies that the connection should use SSL, which is generally the case nowadays. If this doesn't work, you can leave it out, but you should probably also complain to your email provider because they aren't providing sufficient security!)
+which prompts you for your password and then lists the mailboxes on the server. You can then use the mailbox names it returns when running other commands. (The `-x` option specifies that the connection should use SSL, which is generally the case nowadays. If this doesn't work, you can leave it out, but you should probably also complain to your email provider because they aren't providing sufficient security!)
 
 It's worth trying getting this list at least once because different mail servers structure their folders differently: mine thinks of all the folders as being 'within' the inbox, for example, so they're called things like 'INBOX.Drafts','INBOX.Sent', and those are the names I need to use when talking to the server.
 
