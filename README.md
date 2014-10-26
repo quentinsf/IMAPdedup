@@ -52,6 +52,35 @@ The process can take some time on large folders or slow connections, so you may 
 
 You can specify multiple folders to work on, and it work through them in order and will delete, in the later folders, duplicates of messages that it has found either in those folders or in earlier ones.
 
+# Use with a config file
+
+Michael Haggerty made some small changes to facilitate calling imapdedup from a script (e.g., from a cron job).  Instead of running it directly, create a wrapper script that can be as simple as:
+
+    #! /usr/bin/env python
+
+    import imapdedup
+
+    class options:
+        server = 'imap.example.com'
+        port = None
+        ssl = True
+        user = 'me'
+        password = 'Pa$$w0rd'
+        verbose = False
+        dry_run = False
+        use_checksum = False
+        use_id_in_checksum = False
+        just_list = False
+
+    mboxes = [
+        'INBOX',
+        'Some other mailbox',
+        ]
+
+    imapdedup.process(options, mboxes)
+
+This is nice because it doesn't require a password to be passed to the program via a command-line argument, where it could be seen by other users of the system. (This short startup file could be made read-only.)
+
 ## Acknowledgements etc
 
 For more information, please see [the page on Quentin's site](http://qandr.org/quentin/software/imapdedup).
@@ -60,7 +89,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 
