@@ -214,7 +214,11 @@ def process(options, mboxes):
 
                     # Record the message-ID header (or generate one from other headers)
                     msg_id = get_message_id(mp, options.use_checksum, options.use_id_in_checksum)
-                    msg_map[mnum] = mp
+
+                    # Store message only when verbose is enabled (to print it later on)
+                    if options.verbose:
+                        msg_map[mnum] = mp
+
                     if msg_id:
                         # If we've seen this message before, record it as one to be
                         # deleted in this mailbox.
