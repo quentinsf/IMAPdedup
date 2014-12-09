@@ -60,7 +60,7 @@ def get_arguments(args):
     parser.add_option("-m", "--checksum-with-id", dest="use_id_in_checksum", action="store_true",
                         help="Include the Message-ID (if any) in the -c checksum.")
     parser.add_option("",   "--no-close",  dest='no_close', action="store_true",
-                        help='Do not close mailbox (Will leave deleted messages after run)')
+                        help='Do not "close" mailbox when done. Some servers will purge deleted messages on a close command.')
     parser.add_option("-l", "--list", dest="just_list", action="store_true",
                                             help="Just list mailboxes")
 

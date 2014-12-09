@@ -7,7 +7,7 @@ To be more exact, it *marks* the second and later occurrences of a message as 'd
 
 Some mail clients will let you still view such messages *in situ*, so you can take a look at what's happened before 'compacting' the mailbox.  Sometimes deleted messages appear in a 'Trash' folder.  Sometimes they are hidden and can be displayed and un-deleted if wanted, until they are purged.   
 
-Whatever your system does, you will usually have the option to see what has been deleted, and to recover it if needed, using your email program, after running this script.
+Whatever your system does, you will usually have the option to see what has been deleted, and to recover it if needed, using your email program, after running this script.  (If your server purges the deleted messages automatically, you may be able to prevent this with the *--no-close* option.)
 
 ## How it works
 
@@ -89,7 +89,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 
