@@ -59,10 +59,12 @@ def get_arguments(args):
                         help="Use a checksum of several mail headers, instead of the Message-ID")
     parser.add_option("-m", "--checksum-with-id", dest="use_id_in_checksum", action="store_true",
                         help="Include the Message-ID (if any) in the -c checksum.")
+    parser.add_option("",   "--no-close",  dest='no_close', action="store_true",
+                        help='Do not "close" mailbox when done. Some servers will purge deleted messages on a close command.')
     parser.add_option("-l", "--list", dest="just_list", action="store_true",
                                             help="Just list mailboxes")
 
-    parser.set_defaults(verbose=False, ssl=False, dry_run=False, just_list=False)
+    parser.set_defaults(verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False)
     (options, mboxes) = parser.parse_args(args)
     if (not options.server) or (not options.user):
         sys.stderr.write("\nError: Must specify server, user, and at least one mailbox.\n\n")
@@ -212,7 +214,11 @@ def process(options, mboxes):
 
                     # Record the message-ID header (or generate one from other headers)
                     msg_id = get_message_id(mp, options.use_checksum, options.use_id_in_checksum)
-                    msg_map[mnum] = mp
+
+                    # Store message only when verbose is enabled (to print it later on)
+                    if options.verbose:
+                        msg_map[mnum] = mp
+
                     if msg_id:
                         # If we've seen this message before, record it as one to be
                         # deleted in this mailbox.
@@ -259,8 +265,8 @@ def process(options, mboxes):
                     undeleted = check_response(server.search(None, 'UNDELETED'))[0].split()
                     numundel = len(undeleted)
                     print("There are now %s messages marked as deleted and %s others in %s." % (numdeleted, numundel, mbox))
-
-        server.close()
+        if not options.no_close:
+            server.close()
     finally:
         server.logout()
 
