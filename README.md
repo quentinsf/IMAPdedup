@@ -71,6 +71,7 @@ Michael Haggerty made some small changes to facilitate calling imapdedup from a 
         use_checksum = False
         use_id_in_checksum = False
         just_list = False
+        no_close = False
 
     mboxes = [
         'INBOX',
@@ -79,7 +80,7 @@ Michael Haggerty made some small changes to facilitate calling imapdedup from a 
 
     imapdedup.process(options, mboxes)
 
-This is nice because it doesn't require a password to be passed to the program via a command-line argument, where it could be seen by other users of the system. (This short startup file could be made read-only.)
+This is nice because it doesn't require a password to be passed to the program via a command-line argument, where it could be seen by other users of the system. (This short startup file could be made read-only.)  Note that you will normally need to include in your options class ALL of the options that you might specify on the command line.
 
 ## Acknowledgements etc
 
