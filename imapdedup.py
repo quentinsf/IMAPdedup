@@ -36,6 +36,10 @@ import hashlib
 import socket
 import email.parser
 
+# Increase the rather small limit on result line-length
+# imposed in recent imaplib versions.
+imaplib._MAXLINE = 200000
+
 # IMAP responses should normally begin 'OK' - we strip that off
 def check_response(resp):
     status, value = resp
