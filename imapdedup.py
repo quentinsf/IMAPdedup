@@ -35,16 +35,20 @@ import imaplib
 import hashlib
 import socket
 import email.parser
+from email.header import decode_header
 
 # Increase the rather small limit on result line-length
 # imposed in recent imaplib versions.
 imaplib._MAXLINE = 200000
 
+class ImapDedupException(Exception): pass
+
 # IMAP responses should normally begin 'OK' - we strip that off
 def check_response(resp):
     status, value = resp
     if status !='OK':
-        sys.stderr.write("Error: got '%s' response: " % status)
+        raise ImapDedupException("Got response: %s from server" % value)
+
     return value
 
 def get_arguments(args):
@@ -91,6 +95,14 @@ def parse_list_response(line):
     mailbox_name = mailbox_name.strip('"')
     return (flags, delimiter, mailbox_name)
 
+def utf8_header(parsed_message, name):
+    """"
+    Return the value (of the first instance, if more than one) of
+    the given header, as a UTF-8 encoded string.
+    """
+    text, encoding = decode_header(parsed_message.get(name,''))[0]
+    return (text.decode('utf-8', 'ignore')).encode('utf-8')
+
 def get_message_id(parsed_message,
                    options_use_checksum = False,
                    options_use_id_in_checksum = False):
@@ -105,32 +117,32 @@ def get_message_id(parsed_message,
     """
     if options_use_checksum:
         md5 = hashlib.md5()
-        md5.update(("From:"    + str(parsed_message['From'])).encode('utf-8'))
-        md5.update(("To:"      + str(parsed_message['To'])).encode('utf-8'))
-        md5.update(("Subject:" + str(parsed_message['Subject'])).encode('utf-8'))
-        md5.update(("Date:"    + str(parsed_message['Date'])).encode('utf-8'))
-        md5.update(("Cc:"      + str(parsed_message.get('Cc',''))).encode('utf-8'))
-        md5.update(("Bcc:"     + str(parsed_message.get('Bcc',''))).encode('utf-8'))
+        md5.update("From:"    + utf8_header(parsed_message,'From'))
+        md5.update("To:"      + utf8_header(parsed_message,'To'))
+        md5.update("Subject:" + utf8_header(parsed_message,'Subject'))
+        md5.update("Date:"    + utf8_header(parsed_message,'Date'))
+        md5.update("Cc:"      + utf8_header(parsed_message,'Cc'))
+        md5.update("Bcc:"     + utf8_header(parsed_message,'Bcc'))
         if options_use_id_in_checksum:
-            md5.update(("Message-ID:"    + str(parsed_message.get("Message-ID",""))).encode('utf-8'))
+            md5.update("Message-ID:" + utf8_header(parsed_message,'Message-ID'))
         msg_id = md5.hexdigest()
-        print(msg_id)
+        # print(msg_id)
     else:
-        msg_id = parsed_message['Message-ID']
+        msg_id = utf8_header(parsed_message,'Message-ID')
         if not msg_id:
             print("Message '%s' dated '%s' has no Message-ID header." % (
-                parsed_message['Subject'], parsed_message['Date']))
+                utf8_header(parsed_message,'Subject'), utf8_header(parsed_message,'Date')))
             print("You might want to use the -c option.")
             return None
     return msg_id
 
 def print_message_info(parsed_message):
-    print("From: " +    parsed_message.get('From',''))
-    print("To: " +      parsed_message.get('To',''))
-    print("Cc: " +      parsed_message.get('Cc',''))
-    print("Bcc: " +     parsed_message.get('Bcc',''))
-    print("Subject: " + parsed_message.get('Subject',''))
-    print("Date: " +    parsed_message.get('Date',''))
+    print("From: " +    utf8_header(parsed_message,'From'))
+    print("To: " +      utf8_header(parsed_message,'To'))
+    print("Cc: " +      utf8_header(parsed_message,'Cc'))
+    print("Bcc: " +     utf8_header(parsed_message,'Bcc'))
+    print("Subject: " + utf8_header(parsed_message,'Subject'))
+    print("Date: " +    utf8_header(parsed_message,'Date'))
     print("")
 
 # This actually does the work
@@ -271,6 +283,8 @@ def process(options, mboxes):
                     print("There are now %s messages marked as deleted and %s others in %s." % (numdeleted, numundel, mbox))
         if not options.no_close:
             server.close()
+    except ImapDedupException as e:
+        print >> sys.stderr, "Error:", e
     finally:
         server.logout()
 

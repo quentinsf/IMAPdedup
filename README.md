@@ -15,7 +15,7 @@ By default, IMAPdedup will simply look for messages with a duplicate Message-ID 
 
 If you have messages *without* a Message-ID header, or you don't trust it, there's an option (-c) to use a checksum of the To, From, Subject, Date, Cc & Bcc fields instead.
 
-And if you want to add the Message-ID, if it exists, into this checksum, add the '-m' option as well. 
+And if you want to add the Message-ID, if it exists, into this checksum, add the '-m' option as well. I'd recommend this in general, because some (foolish) automated systems can send you multiple messages within a single second, with different contents but the same headers. (e.g. "Subject: Your post has just been published!")
 
 
 ## Trying it out
