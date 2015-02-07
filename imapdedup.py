@@ -46,9 +46,8 @@ class ImapDedupException(Exception): pass
 # IMAP responses should normally begin 'OK' - we strip that off
 def check_response(resp):
     status, value = resp
-    if status !='OK':
+    if status != 'OK':
         raise ImapDedupException("Got response: %s from server" % value)
-
     return value
 
 def get_arguments(args):
@@ -90,10 +89,12 @@ def get_arguments(args):
 # Thanks to http://www.doughellmann.com/PyMOTW/imaplib/
 list_response_pattern = re.compile(r'\((?P<flags>.*?)\) "(?P<delimiter>.*)" (?P<name>.*)')
 
+
 def parse_list_response(line):
     flags, delimiter, mailbox_name = list_response_pattern.match(line).groups()
     mailbox_name = mailbox_name.strip('"')
     return (flags, delimiter, mailbox_name)
+
 
 def utf8_header(parsed_message, name):
     """"
@@ -101,7 +102,15 @@ def utf8_header(parsed_message, name):
     the given header, as a UTF-8 encoded string.
     """
     text, encoding = decode_header(parsed_message.get(name,''))[0]
-    return (text.decode('utf-8', 'ignore')).encode('utf-8')
+    # Attempt to handle python 2 and 3 here at least
+    if sys.version_info < (3,0,0):
+        if not isinstance(text, unicode): 
+            text = text.decode('utf-8', 'ignore')
+    else:
+        if isinstance(text, bytes):
+            text = text.decode('utf-8', 'ignore')
+    return text.encode('utf-8')
+
 
 def get_message_id(parsed_message,
                    options_use_checksum = False,
@@ -136,6 +145,7 @@ def get_message_id(parsed_message,
             return None
     return msg_id
 
+
 def print_message_info(parsed_message):
     print("From: " +    utf8_header(parsed_message,'From'))
     print("To: " +      utf8_header(parsed_message,'To'))
@@ -144,6 +154,7 @@ def print_message_info(parsed_message):
     print("Subject: " + utf8_header(parsed_message,'Subject'))
     print("Date: " +    utf8_header(parsed_message,'Date'))
     print("")
+
 
 # This actually does the work
 def process(options, mboxes):
