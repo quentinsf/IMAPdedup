@@ -55,6 +55,7 @@ def get_arguments(args):
     # Get arguments and create link to server
     from optparse import OptionParser
     parser = OptionParser(usage="%prog [options] <mailboxname> [<mailboxname> ...]")
+    parser.add_option("-P", "--process",dest='process', help='IMAP process to access mailboxes')
     parser.add_option("-s", "--server",dest='server',help='IMAP server')
     parser.add_option("-p", "--port",  dest='port',  help='IMAP server port', type='int')
     parser.add_option("-x", "--ssl",   dest='ssl',   action="store_true", help='Use SSL')
@@ -74,11 +75,11 @@ def get_arguments(args):
 
     parser.set_defaults(verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False)
     (options, mboxes) = parser.parse_args(args)
-    if (not options.server) or (not options.user):
+    if ((not options.server) or (not options.user)) and not options.process:
         sys.stderr.write("\nError: Must specify server, user, and at least one mailbox.\n\n")
         parser.print_help()
         sys.exit(1)
-    if not options.password:
+    if not options.password and not options.process:
         options.password = getpass.getpass()
 
     if options.use_id_in_checksum and not options.use_checksum:
@@ -147,13 +148,17 @@ def print_message_info(parsed_message):
 
 # This actually does the work
 def process(options, mboxes):
-    if options.ssl:
+    if options.process:
+        serverclass = imaplib.IMAP4_stream
+    elif options.ssl:
         serverclass = imaplib.IMAP4_SSL
     else:
         serverclass = imaplib.IMAP4
 
     try:
-        if options.port:
+        if options.process:
+            server = serverclass(options.process)
+        elif options.port:
             server = serverclass(options.server, options.port)
         else:
             # Use the default, which will be different depending on SSL choice
@@ -169,7 +174,8 @@ def process(options, mboxes):
         sys.stderr.write('\nWarning: Unencrypted connection\n')
 
     try:
-        server.login(options.user, options.password)
+        if not options.process:
+            server.login(options.user, options.password)
     except:
         sys.stderr.write("\nError: Login failed\n")
         sys.exit(1)
