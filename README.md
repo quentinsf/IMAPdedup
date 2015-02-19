@@ -72,6 +72,7 @@ Michael Haggerty made some small changes to facilitate calling imapdedup from a 
         use_id_in_checksum = False
         just_list = False
         no_close = False
+        process = False
 
     mboxes = [
         'INBOX',
@@ -82,6 +83,17 @@ Michael Haggerty made some small changes to facilitate calling imapdedup from a 
 
 This is nice because it doesn't require a password to be passed to the program via a command-line argument, where it could be seen by other users of the system. (This short startup file could be made read-only.)  Note that you will normally need to include in your options class ALL of the options that you might specify on the command line.
 
+
+## Accessing the IMAP mailboxes via a local server
+
+The -P option allows you to access the mailboxes via stdin/stdout to a subprocess, rather than over the network.
+Dovecot can be run in this mode, for example:
+
+    /usr/lib/dovecot/imap -o mail_location=maildir:~/.mbsync/mails
+
+Typically you might wrap such a command in a script, and then specify the script as the argument of the -P option.
+
+
 ## Acknowledgements etc
 
 For more information, please see [the page on Quentin's site](http://qandr.org/quentin/software/imapdedup).
@@ -90,7 +102,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 
