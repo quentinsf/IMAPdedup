@@ -44,7 +44,9 @@ Once you know your folder names, you can run something like
 
     ./imapdedup.py -s imap.myisp.com -u myuserid -x -n INBOX.Test
 
-and the script will tell you what it would do to your *INBOX/Test* folder. 
+and the script will tell you what it would do to your *INBOX/Test* folder.  If your folder name contains spaces, you'll need to put it in quotes:
+
+    ./imapdedup.py -s imap.myisp.com -u myuserid -x -n "INBOX.My Important Messages"
 
 The `-n` option tells IMAPdedup that this is a 'dry run': it stops it from *actually making* any changes; it's a good idea to run with this first unless you like living dangerously.  When you're ready, leave that out, and it will go ahead and mark your duplicate messages as deleted.  
 
