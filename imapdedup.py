@@ -27,7 +27,7 @@
 #   USA.
 #
 
-
+import os
 import sys
 import getpass
 import re
@@ -79,7 +79,8 @@ def get_arguments(args):
         parser.print_help()
         sys.exit(1)
     if not options.password and not options.process:
-        options.password = getpass.getpass()
+        # Read from IMAPDEDUP_PASSWORD env variable, or prompt for one.
+        options.password = os.getenv("IMAPDEDUP_PASSWORD") or getpass.getpass()
 
     if options.use_id_in_checksum and not options.use_checksum:
         sys.stderr.write("\nError: If you use -m you must also use -c.\n")
@@ -125,26 +126,35 @@ def get_message_id(parsed_message,
 
     Otherwise use the Message-ID header. Print a warning if the Message-ID header does not exist.
     """
-    if options_use_checksum:
-        md5 = hashlib.md5()
-        md5.update("From:"    + utf8_header(parsed_message,'From'))
-        md5.update("To:"      + utf8_header(parsed_message,'To'))
-        md5.update("Subject:" + utf8_header(parsed_message,'Subject'))
-        md5.update("Date:"    + utf8_header(parsed_message,'Date'))
-        md5.update("Cc:"      + utf8_header(parsed_message,'Cc'))
-        md5.update("Bcc:"     + utf8_header(parsed_message,'Bcc'))
-        if options_use_id_in_checksum:
-            md5.update("Message-ID:" + utf8_header(parsed_message,'Message-ID'))
-        msg_id = md5.hexdigest()
-        # print(msg_id)
-    else:
-        msg_id = utf8_header(parsed_message,'Message-ID')
-        if not msg_id:
-            print("Message '%s' dated '%s' has no Message-ID header." % (
-                utf8_header(parsed_message,'Subject'), utf8_header(parsed_message,'Date')))
-            print("You might want to use the -c option.")
-            return None
-    return msg_id
+    try:
+        if options_use_checksum:
+            md5 = hashlib.md5()
+            md5.update("From:"    + utf8_header(parsed_message,'From'))
+            md5.update("To:"      + utf8_header(parsed_message,'To'))
+            md5.update("Subject:" + utf8_header(parsed_message,'Subject'))
+            md5.update("Date:"    + utf8_header(parsed_message,'Date'))
+            md5.update("Cc:"      + utf8_header(parsed_message,'Cc'))
+            md5.update("Bcc:"     + utf8_header(parsed_message,'Bcc'))
+            if options_use_id_in_checksum:
+                md5.update("Message-ID:" + utf8_header(parsed_message,'Message-ID'))
+            msg_id = md5.hexdigest()
+            # print(msg_id)
+        else:
+            msg_id = utf8_header(parsed_message,'Message-ID')
+            if not msg_id:
+                print("Message '%s' dated '%s' has no Message-ID header." % (
+                    utf8_header(parsed_message,'Subject'), utf8_header(parsed_message,'Date')))
+                print("You might want to use the -c option.")
+                return None
+        return msg_id
+    except ValueError:
+        print("WARNING: There was an exception trying to parse the headers of this message.")
+        print("It may be corrupt, and you might consider deleting it.")
+        print("Subject: %s\nFrom: %s\nDate: %s\n" % (
+            parsed_message['Subject'], parsed_message['From'], parsed_message['Date']))
+        print("Message skipped.")
+        return None
+
 
 
 def print_message_info(parsed_message):
