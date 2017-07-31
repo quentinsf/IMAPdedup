@@ -36,6 +36,7 @@ import hashlib
 import socket
 import email.parser
 from email.header import decode_header
+from email.errors import HeaderParseError
 
 # Increase the rather small limit on result line-length
 # imposed in recent imaplib versions.
@@ -147,7 +148,7 @@ def get_message_id(parsed_message,
                 print("You might want to use the -c option.")
                 return None
         return msg_id
-    except ValueError:
+    except (ValueError, HeaderParseError):
         print("WARNING: There was an exception trying to parse the headers of this message.")
         print("It may be corrupt, and you might consider deleting it.")
         print("Subject: %s\nFrom: %s\nDate: %s\n" % (
