@@ -251,7 +251,7 @@ def process(options, mboxes):
 
                 # and parse them.
                 for ci in range(0, len(ms)/2):
-                    mnum = msgnums_in_chunk[ci]
+                    mnum = ms[ci * 2][0].split()[0]
                     mp = p.parsestr(ms[ci * 2][1])
                     if options.verbose:
                         print("Checking %s message %s" % (mbox, mnum))
