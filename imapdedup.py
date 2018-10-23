@@ -250,7 +250,7 @@ def process(options, mboxes):
                     print ("Batch starting at item %d" % i)
 
                 # and parse them.
-                for ci in range(0, len(msgnums_in_chunk)):
+                for ci in range(0, len(ms)/2):
                     mnum = msgnums_in_chunk[ci]
                     mp = p.parsestr(ms[ci * 2][1])
                     if options.verbose:
