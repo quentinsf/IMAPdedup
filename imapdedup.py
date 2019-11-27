@@ -39,8 +39,8 @@ from email.header import decode_header
 from email.errors import HeaderParseError
 
 # Increase the rather small limit on result line-length
-# imposed in recent imaplib versions.
-imaplib._MAXLINE = 200000
+# imposed in certain imaplib versions.
+imaplib._MAXLINE = max(2000000, imaplib._MAXLINE)
 
 class ImapDedupException(Exception): pass
 
