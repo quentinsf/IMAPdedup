@@ -44,6 +44,8 @@ imaplib._MAXLINE = max(2000000, imaplib._MAXLINE)
 
 class ImapDedupException(Exception): pass
 
+current_path = os.path.dirname(os.path.abspath(__file__))
+
 # IMAP responses should normally begin 'OK' - we strip that off
 def check_response(resp):
     status, value = resp
@@ -73,8 +75,10 @@ def get_arguments(args):
     parser.add_option("-l", "--list", dest="just_list", action="store_true",
                                             help="Just list mailboxes")
     parser.add_option("-d", "--domains", dest="domains_list", help="Check only mails from listed domains, separate by comma.")
+    parser.add_option("-L", "--write_log", dest="write_log", action="store_true",
+                                            help="Write log to current directory for mails that are touched.")
 
-    parser.set_defaults(verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False)
+    parser.set_defaults(verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False, write_log=False)
     (options, mboxes) = parser.parse_args(args)
     if ((not options.server) or (not options.user)) and not options.process:
         sys.stderr.write("\nError: Must specify server, user, and at least one mailbox.\n\n")
@@ -108,7 +112,7 @@ def utf8_header(parsed_message, name):
     text, encoding = decode_header(parsed_message.get(name,''))[0]
     # Attempt to handle python 2 and 3 here at least
     if sys.version_info < (3,0,0):
-        if not isinstance(text, unicode): 
+        if not isinstance(text, unicode):
             text = text.decode('utf-8', 'ignore')
     else:
         if isinstance(text, bytes):
@@ -219,6 +223,12 @@ def process(options, mboxes):
     # OK - let's get started.
     # Iterate through a set of named mailboxes and delete the later messages discovered.
     try:
+        if options.write_log:
+            logfile_path = os.path.join(current_path, 'imapdedup.log')
+            if os.path.exists(logfile_path):
+                os.remove(logfile_path)
+            log_file = open(logfile_path, 'w')
+
         p = email.parser.Parser() # can be the same for all mailboxes
         # Create a list of previously seen message IDs, in any mailbox
         msg_ids = {}
@@ -291,6 +301,10 @@ def process(options, mboxes):
                                            mbox, mnum, msg_ids[msg_id], options.dry_run and "would" or "will"))
                             if options.verbose:
                                 print ("Subject: %s\nFrom: %s\nDate: %s\n" % (mp['Subject'], mp['From'], mp['Date']))
+
+                            if options.write_log:
+                                log_file.write("Subject: %s\nFrom: %s\nDate: %s\n\n" % (mp['Subject'], mp['From'], mp['Date']))
+
                             msgs_to_delete.append(mnum)
                         # Otherwise record the fact that we've seen it
                         else:
@@ -335,6 +349,8 @@ def process(options, mboxes):
         print >> sys.stderr, "Error:", e
     finally:
         server.logout()
+        if options.write_log:
+            log_file.close()
 
 def main(args):
     options, mboxes = get_arguments(args)
@@ -343,4 +359,3 @@ def main(args):
 if __name__ == '__main__':
     main(sys.argv[1:])
 
-    
