@@ -72,6 +72,7 @@ def get_arguments(args):
                         help='Do not "close" mailbox when done. Some servers will purge deleted messages on a close command.')
     parser.add_option("-l", "--list", dest="just_list", action="store_true",
                                             help="Just list mailboxes")
+    parser.add_option("-d", "--domains", dest="domains_list", help="Check only mails from listed domains, separate by comma.")
 
     parser.set_defaults(verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False)
     (options, mboxes) = parser.parse_args(args)
@@ -221,6 +222,10 @@ def process(options, mboxes):
         p = email.parser.Parser() # can be the same for all mailboxes
         # Create a list of previously seen message IDs, in any mailbox
         msg_ids = {}
+
+        if options.domains_list:
+            print("Checking mails only from domains: %s" % options.domains_list)
+
         for mbox in mboxes:
             msgs_to_delete = [] # should be reset for each mbox
             msg_map = {} # should be reset for each mbox
@@ -255,6 +260,21 @@ def process(options, mboxes):
                     mp = p.parsestr(ms[ci * 2][1])
                     if options.verbose:
                         print("Checking %s message %s" % (mbox, mnum))
+
+                    omit_message = 1
+
+                    if options.domains_list:
+                        for domain in options.domains_list.split(','):
+                            if mp['From'] and mp['From'].find(domain) != -1:
+                                omit_message = domain
+
+                    if options.domains_list and omit_message == 1:
+                        if mp['From']:
+                            print("Omitting message from: %s" % mp['From'])
+                        continue
+
+                    if options.domains_list and omit_message != 1:
+                        print("Message in domain list: %s, found: %s" % (mp['From'], omit_message))
 
                     # Record the message-ID header (or generate one from other headers)
                     msg_id = get_message_id(mp, options.use_checksum, options.use_id_in_checksum)
@@ -323,3 +343,4 @@ def main(args):
 if __name__ == '__main__':
     main(sys.argv[1:])
 
+    
