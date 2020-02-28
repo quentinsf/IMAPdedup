@@ -72,8 +72,11 @@ def get_arguments(args):
                         help='Do not "close" mailbox when done. Some servers will purge deleted messages on a close command.')
     parser.add_option("-l", "--list", dest="just_list", action="store_true",
                                             help="Just list mailboxes")
+    parser.add_option("-a", "--all", dest="do_all", action="store_true", help="Do all the mailboxes")
+    parser.add_option("-g", "--global", dest="do_global", action="store_true",
+                        help="Confront messages from all the mailboxes")
 
-    parser.set_defaults(verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False)
+    parser.set_defaults(verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False, do_all=False, do_global=False)
     (options, mboxes) = parser.parse_args(args)
     if ((not options.server) or (not options.user)) and not options.process:
         sys.stderr.write("\nError: Must specify server, user, and at least one mailbox.\n\n")
@@ -203,15 +206,20 @@ def process(options, mboxes):
         sys.exit(1)
 
     # List mailboxes option
-    if options.just_list:
+    if options.just_list or options.do_all:
         for mb in check_response(server.list()):
             mb = mb.decode('utf-7')
             bits = parse_list_response(mb)
             if r'\\Noselect' not in bits[0]:
-                print(bits[2])
-        sys.exit()
+                if not options.do_all:
+                    print(bits[2])
+                else:
+                    mboxname = '"%s"' % bits[2] #double apices to prevent errors on names with spaces
+                    mboxes.append(mboxname)
+        if not options.do_all:
+            sys.exit()
 
-    if len(mboxes) == 0:
+    if len(mboxes) == 0 and not options.do_all:
         sys.stderr.write("\nError: Must specify mailbox\n")
         sys.exit(1)
 
@@ -222,6 +230,8 @@ def process(options, mboxes):
         # Create a list of previously seen message IDs, in any mailbox
         msg_ids = {}
         for mbox in mboxes:
+            if not options.do_global:
+                msg_ids = {}
             msgs_to_delete = [] # should be reset for each mbox
             msg_map = {} # should be reset for each mbox
 
