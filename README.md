@@ -1,6 +1,8 @@
 # IMAPdedup
 *A duplicate email message remover*
 
+**Please note that version 2 onwards is not necessarily backwards compatible with earlier versions, so you should read the following carefully.  It also requires Python 3.**
+
 IMAPdedup is a Python script (imapdedup.py) that looks for duplicate messages in a set of IMAP mailboxes and tidies up all but the first copy of any duplicates found. 
 
 To be more exact, it *marks* the second and later occurrences of a message as 'deleted' on the server.   Exactly what that does in your environment will depend on your mail server and your mail client. 
@@ -17,6 +19,9 @@ If you have messages *without* a Message-ID header, or you don't trust it, there
 
 And if you want to add the Message-ID, if it exists, into this checksum, add the '-m' option as well. I'd recommend this in general, because some (foolish) automated systems can send you multiple messages within a single second, with different contents but the same headers. (e.g. "Subject: Your review has just been published!")
 
+## Installation
+
+IMAPdedup doesn't currently have any installation process.  You just need the imapdedup.py file, and Python 3.
 
 ## Trying it out
 
@@ -24,13 +29,17 @@ If you want to experiment, create a new folder on your mail server, and copy som
 
 ## Simple use
 
-*Note: IMAPdedup expects to run under Python 2. Some work has been done to make it Python-3-compatible, but your mileage may vary!*
+*Note: IMAPdedup expects to run under Python 3.*
 
-You can list the full syntax by running 
+You can list the full syntax by running:
 
     ./imapdedup.py -h
 
 but the key options are described below.  You will of course need the address of your IMAP email server, and your username on that server.
+
+If you're not on a system that can execute Python scripts directly like this, you may need something like:
+
+    python3 imapdedup.py -h
 
 Try starting with something harmless like:
 
@@ -90,7 +99,8 @@ Michael Haggerty made some small changes to facilitate calling imapdedup from a 
 
     imapdedup.process(options, mboxes)
 
-Note that you will normally need to include in your options class ALL of the options that you might specify on the command line.  
+Note that you will normally need to include in your options class **ALL of the options** that you might specify on the command line.  
+If new options are added to the main imapdedup.py script, you'll need to update your wrapper script to specify them.
 
 If you on a shared machine or filesystem and you are including sensitive information such as the password in this file, you may wish to set its permissions appropriately.
 
