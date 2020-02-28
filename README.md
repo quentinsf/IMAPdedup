@@ -1,7 +1,7 @@
 # IMAPdedup
 *A duplicate email message remover*
 
-**Please note that version 2 onwards is not necessarily backwards compatible with earlier versions, so you should read the following carefully.  It also requires Python 3.**
+**Please note that recent versions require Python 3.**
 
 IMAPdedup is a Python script (imapdedup.py) that looks for duplicate messages in a set of IMAP mailboxes and tidies up all but the first copy of any duplicates found. 
 
@@ -45,9 +45,9 @@ Try starting with something harmless like:
 
     ./imapdedup.py -s imap.myisp.com -u myuserid -x -l
 
-which prompts you for your password and then lists the mailboxes on the server. You can then use the mailbox names it returns when running other commands. (The `-x` option specifies that the connection should use SSL, which is generally the case nowadays. If this doesn't work, you can leave it out, but you should probably also complain to your email provider because they aren't providing sufficient security!)
+which prompts you for your password and then lists the mailboxes on the server. You can then use the mailbox names it returns when running other commands. (The `-x` option specifies that the connection should use SSL, which is generally the case nowadays. If this doesn't work, you can leave it out, but you should probably also complain to your email provider because they aren't providing sufficient security! A future version of the script will make this the default.)
 
-It's worth trying getting this list at least once because different mail servers structure their folders differently: mine thinks of all the folders as being 'within' the inbox, for example, so they're called things like 'INBOX.Drafts','INBOX.Sent', and those are the names I need to use when talking to the server.
+It's worth trying getting this list at least once because different mail servers structure their folders differently. One of mine thinks of all the folders as being 'within' the inbox, for example, so they're called things like 'INBOX.Drafts','INBOX.Sent', and those are the names I need to use when talking to the server.
 
 Once you know your folder names, you can run something like
 
@@ -55,7 +55,7 @@ Once you know your folder names, you can run something like
 
 and the script will tell you what it would do to your *INBOX/Test* folder.  If your folder name contains spaces, you'll need to put it in quotes:
 
-    ./imapdedup.py -s imap.myisp.com -u myuserid -x -n "INBOX.My Important Messages"
+    ./imapdedup.py -s imap.myisp.com -u myuserid -x -n "My Important Messages"
 
 The `-n` option tells IMAPdedup that this is a 'dry run': it stops it from *actually making* any changes; it's a good idea to run with this first unless you like living dangerously.  When you're ready, leave that out, and it will go ahead and mark your duplicate messages as deleted.  
 
@@ -116,7 +116,7 @@ Typically you might wrap such a command in a script, and then specify the script
 
 ## Acknowledgements etc
 
-For more information, please see [the page on Quentin's site](http://qandr.org/quentin/software/imapdedup).
+For more information, please see [the page on Quentin's site](https://quentinsf.com/software/imapdedup).
 
 This software is released under the terms of the GPL v2.  See the included LICENCE.TXT for details.  
 
@@ -126,5 +126,5 @@ Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefa
 
 [Quentin Stafford-Fraser][1]
 
-[1]:http://statusq.org
+[1]:https://statusq.org
 
