@@ -70,6 +70,7 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
     parser.add_option("-s", "--server", dest="server", help="IMAP server")
     parser.add_option("-p", "--port", dest="port", help="IMAP server port", type="int")
     parser.add_option("-x", "--ssl", dest="ssl", action="store_true", help="Use SSL")
+    parser.add_option("-X", "--starttls", dest="starttls", action="store_true", help="Require STARTTLS")
     parser.add_option("-u", "--user", dest="user", help="IMAP user name")
     parser.add_option(
         "-w",
@@ -328,6 +329,9 @@ def process(options, mboxes: List[str]):
 
     if ("STARTTLS" in server.capabilities) and hasattr(server, "starttls"):
         server.starttls()
+    elif options.starttls:
+        sys.stderr.write("\nError: Server did not offer TLS\n")
+        sys.exit(1)
     elif not options.ssl:
         sys.stderr.write("\nWarning: Unencrypted connection\n")
 
