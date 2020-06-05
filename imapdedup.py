@@ -36,7 +36,7 @@ import optparse
 import re
 import socket
 import sys
-from typing import List, Dict, Tuple, Optional, Union, Type, Any
+from typing import List, Dict, Tuple, Optional, Type, Any
 
 from email.parser import BytesParser
 from email.message import Message
@@ -94,6 +94,12 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         dest="use_checksum",
         action="store_true",
         help="Use a checksum of several mail headers, instead of the Message-ID",
+    )
+    parser.add_option(
+        "-b",
+        "--sentbefore",
+        dest="sent_before",
+        help="Only process messages sent before given date, given as d-m-y, e.g: 1-Feb-2020. Useful when there are many duplicates of each message",
     )
     parser.add_option(
         "-m",
@@ -242,24 +248,32 @@ def get_mailbox_list(server: imaplib.IMAP4) -> List[str]:
             resp.append(bits[2].decode())
     return resp
 
-def get_deleted_msgnums(server: imaplib.IMAP4) -> List[int]:
+def get_deleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
     """
     Return a list of ids of deleted messages in the folder.
     """
     resp = []
-    deleted_info = check_response(server.search(None, "DELETED"))
+    query = "DELETED"
+    if (sent_before != None):
+        query = query + " SENTBEFORE " + sent_before
+        print("Getting deleted messages sent before " + sent_before)
+    deleted_info = check_response(server.search(None, query))
     if deleted_info:   
         # If neither None nor empty, then
         # the first item should be a list of msg ids
         resp = [int(n) for n in deleted_info[0].split()]
     return resp
 
-def get_undeleted_msgnums(server: imaplib.IMAP4) -> List[int]:
+def get_undeleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
     """
     Return a list of ids of non-deleted messages in the folder.
     """
     resp = []
-    undeleted_info = check_response(server.search(None, "UNDELETED"))
+    query = "UNDELETED"
+    if (sent_before != None):
+        query = query + " SENTBEFORE " + sent_before
+        print("Getting undeleted messages sent before " + sent_before)
+    undeleted_info = check_response(server.search(None, query))
     if undeleted_info:   
         # If neither None nor empty, then
         # the first item should be a list of msg ids
@@ -372,7 +386,7 @@ def process(options, mboxes: List[str]):
             print("There are %d messages in %s." % (int(msgs), mbox))
 
             # Check how many messages are already marked 'deleted'...
-            numdeleted = len(get_deleted_msgnums(server))
+            numdeleted = len(get_deleted_msgnums(server, options.sent_before))
             print(
                 "%s message(s) currently marked as deleted in %s"
                 % (numdeleted or "No", mbox)
@@ -380,7 +394,7 @@ def process(options, mboxes: List[str]):
 
             # Now get a list of the ones that aren't deleted. 
             # That's what we'll actually use.
-            msgnums = get_undeleted_msgnums(server)
+            msgnums = get_undeleted_msgnums(server, options.sent_before)
             print("%s others in %s" % (len(msgnums), mbox))
 
             chunkSize = 100
@@ -466,8 +480,8 @@ def process(options, mboxes: List[str]):
                         if options.verbose:
                             print("Batch starting at item %d marked." % i)
                     print("Confirming new numbers...")
-                    numdeleted = len(get_deleted_msgnums(server))
-                    numundel = len(get_undeleted_msgnums(server))
+                    numdeleted = len(get_deleted_msgnums(server, options.sent_before))
+                    numundel = len(get_undeleted_msgnums(server, options.sent_before))
                     print(
                         "There are now %s messages marked as deleted and %s others in %s."
                         % (numdeleted, numundel, mbox)
