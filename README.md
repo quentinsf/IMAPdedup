@@ -1,7 +1,7 @@
 # IMAPdedup
 *A duplicate email message remover*
 
-**Please note that recent versions require Python 3.**
+**Please note that recent versions require Python 3.6 or later**
 
 IMAPdedup is a Python script (imapdedup.py) that looks for duplicate messages in a set of IMAP mailboxes and tidies up all but the first copy of any duplicates found. 
 
