@@ -131,7 +131,7 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
     )
 
     parser.set_defaults(
-        verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False
+        verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False, recursive=False
     )
     (options, mboxes) = parser.parse_args(args)
     if ((not options.server) or (not options.user)) and not options.process:
