@@ -122,9 +122,16 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         action="store_true",
         help="Just list mailboxes",
     )
+    parser.add_option(
+        "-r",
+        "--recursive",
+        dest="recursive",
+        action="store_true",
+        help="Remove duplicates recursively",
+    )
 
     parser.set_defaults(
-        verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False
+        verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False, recursive=False
     )
     (options, mboxes) = parser.parse_args(args)
     if ((not options.server) or (not options.user)) and not options.process:
@@ -133,6 +140,10 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         )
         parser.print_help()
         sys.exit(1)
+    if options.recursive and len(mboxes) > 1:
+        sys.stderr.write("\nError: You can only specify one mailbox if you use -r.\n")
+        sys.exit(1)
+
     if not options.password and not options.process:
         # Read from IMAPDEDUP_PASSWORD env variable, or prompt for one.
         options.password = os.getenv("IMAPDEDUP_PASSWORD") or getpass.getpass()
@@ -237,12 +248,12 @@ def get_message_id(
         return None
 
 
-def get_mailbox_list(server: imaplib.IMAP4) -> List[str]:
+def get_mailbox_list(server: imaplib.IMAP4, directory: str = '""', pattern: str = '"*"') -> List[str]:
     """
-    Return a list of usable mailbox names
+    Return a list of usable mailbox names which match the pattern.
     """
     resp = []
-    for mb in check_response(server.list()):
+    for mb in check_response(server.list(directory, pattern)):
         bits = parse_list_response(mb)
         if rb"\\Noselect" not in bits[0]:
             resp.append(bits[2].decode())
@@ -316,6 +327,12 @@ def print_message_info(parsed_message: Message):
     print("")
 
 
+def add_quotes(mbox: str) -> str:
+    if " " in mbox and (mbox[0] != '"' or mbox[-1] != '"'):
+        mbox = '"' + mbox + '"'
+    return mbox
+
+
 # This actually does the work
 def process(options, mboxes: List[str]):
     serverclass: Type[Any]
@@ -367,6 +384,20 @@ def process(options, mboxes: List[str]):
         sys.stderr.write("\nError: Must specify mailbox\n")
         sys.exit(1)
 
+    # Recursive option
+    # Add child mailboxes to mboxes
+    if options.recursive:
+        # Make sure mailbox name is surrounded by quotes if it contains a space
+        parent = add_quotes(mboxes[0])
+        # Fetch the hierarchy delimiter
+        bits = parse_list_response(check_response(server.list(parent, '""'))[0])
+        delimiter = bits[1].decode()
+        pattern='"' + delimiter + '*"'
+        for mb in get_mailbox_list(server, parent, pattern):
+            mboxes.append(mb)
+        print("Working recursively from mailbox %s. There are %d total mailboxes." % (parent, len(mboxes)))
+
+
     # OK - let's get started.
     # Iterate through a set of named mailboxes and delete the later messages discovered.
     try:
@@ -378,8 +409,7 @@ def process(options, mboxes: List[str]):
             msg_map = {}  # should be reset for each mbox
 
             # Make sure mailbox name is surrounded by quotes if it contains a space
-            if " " in mbox and (mbox[0] != '"' or mbox[-1] != '"'):
-                mbox = '"' + mbox + '"'
+            mbox = add_quotes(mbox)
 
             # Select the mailbox
             msgs = check_response(server.select(mailbox=mbox, readonly=options.dry_run))[0]
