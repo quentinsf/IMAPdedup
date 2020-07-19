@@ -63,6 +63,8 @@ The process can take some time on large folders or slow connections, so you may 
 
 You can specify multiple folders to work on, and it work through them in order and will delete, in the later folders, duplicates of messages that it has found either in those folders or in earlier ones.
 
+If you have a hierarchy of folders, you can search recursively within the children of a particular folder using the `-r` option and specifying the top-level folder.
+
 # Specifying the password
 
 If you don't wish to specify a password via a command-line argument, where it could be seen by other users of the system, and you don't want to type it in each time, you have two options:
@@ -91,6 +93,7 @@ Michael Haggerty made some small changes to facilitate calling imapdedup from a 
         just_list = False
         no_close = False
         process = False
+        recursive = False
 
     mboxes = [
         'INBOX',

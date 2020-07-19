@@ -250,7 +250,7 @@ def get_message_id(
 
 def get_mailbox_list(server: imaplib.IMAP4, directory: str = '""', pattern: str = '"*"') -> List[str]:
     """
-    Return a list of usable mailbox names
+    Return a list of usable mailbox names which match the pattern.
     """
     resp = []
     for mb in check_response(server.list(directory, pattern)):
@@ -395,7 +395,7 @@ def process(options, mboxes: List[str]):
         pattern='"' + delimiter + '*"'
         for mb in get_mailbox_list(server, parent, pattern):
             mboxes.append(mb)
-        print("Working recursivly from mailbox %s. There are %d total mailboxes." % (parent, len(mboxes)))
+        print("Working recursively from mailbox %s. There are %d total mailboxes." % (parent, len(mboxes)))
 
 
     # OK - let's get started.
