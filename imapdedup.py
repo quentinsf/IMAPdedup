@@ -140,17 +140,18 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         )
         parser.print_help()
         sys.exit(1)
+
     if options.recursive and len(mboxes) > 1:
         sys.stderr.write("\nError: You can only specify one mailbox if you use -r.\n")
+        sys.exit(1)
+
+    if options.use_id_in_checksum and not options.use_checksum:
+        sys.stderr.write("\nError: If you use -m you must also use -c.\n")
         sys.exit(1)
 
     if not options.password and not options.process:
         # Read from IMAPDEDUP_PASSWORD env variable, or prompt for one.
         options.password = os.getenv("IMAPDEDUP_PASSWORD") or getpass.getpass()
-
-    if options.use_id_in_checksum and not options.use_checksum:
-        sys.stderr.write("\nError: If you use -m you must also use -c.\n")
-        sys.exit(1)
 
     return (options, mboxes)
 
