@@ -107,6 +107,29 @@ If new options are added to the main imapdedup.py script, you'll need to update 
 
 If you on a shared machine or filesystem and you are including sensitive information such as the password in this file, you may wish to set its permissions appropriately.
 
+## Checking ALL of your mailboxes
+
+Several people have asked for an option to check for duplicates across all of your mailboxes.  This isn't built-in for a couple of reasons.  The main one is that when you specify multiple folders on the command line, IMAPdedup will search them in order, deleting duplicate messages from the later ones if they have been found in the earlier ones.   If we added an 'All folders' option, we'd need a way to specify which ones came first: if you find duplicates in two or more mailboxes, which one(s) should be deleted?
+
+So my proposed workaround if you're in this situation is to ask the program for a list of all your folders, put those in a file, edit that file as wanted (e.g. to change the order, or exclude particular folders), and then use `xargs` to pass all the folder names in the file to IMAPdedup.
+
+Here's a quick demo. Imagine you normally run this:
+
+    ./imapdedup.py -x -s servername -u username -w password ...
+
+You can save your list of folders to a file called folders.txt like this:
+
+    ./imapdedup.py -x -s servername -u username -w password -l > folders.txt
+
+The `xargs` utility lets you read words (or lines) from the standard input, and run any command passing those words as arguments to the command, so you can do something like this (I've included the -n so it's a dry run and should be safe if you try it!):
+
+    cat folders.txt | xargs ./imapdedup.py -x -s servername -u username -w password -n
+
+xargs will basically run imapdedup with all the folder names in folders.txt passed as arguments as if you had typed them on the command line. *NOTE:* If your folder names have any spaces in them, you should open the text files in an editor and put quotes around each line that has them.
+
+All of this does require you to be running on Linux or a Mac. Much harder to do anything like this on Windows, of course!
+
+
 ## Accessing the IMAP mailboxes via a local server
 
 The -P option allows you to access the mailboxes via stdin/stdout to a subprocess, rather than over the network.
