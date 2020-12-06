@@ -82,6 +82,9 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         "-v", "--verbose", dest="verbose", action="store_true", help="Verbose mode"
     )
     parser.add_option(
+        "-S", "--show", dest="show", action="store_true", help="Show duplicated messages"
+    )
+    parser.add_option(
         "-n",
         "--dry-run",
         dest="dry_run",
@@ -131,7 +134,13 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
     )
 
     parser.set_defaults(
-        verbose=False, ssl=False, dry_run=False, no_close=False, just_list=False, recursive=False
+        verbose=False,
+        show=False,
+        ssl=False,
+        dry_run=False,
+        no_close=False,
+        just_list=False,
+        recursive=False
     )
     (options, mboxes) = parser.parse_args(args)
     if ((not options.server) or (not options.user)) and not options.process:
@@ -468,7 +477,7 @@ def process(options, mboxes: List[str]):
                                     options.dry_run and "would" or "will",
                                 ) 
                             )
-                            if options.verbose:
+                            if options.show or options.verbose:
                                 print(
                                     "Subject: %s\nFrom: %s\nDate: %s\n"
                                     % (mp["Subject"], mp["From"], mp["Date"])
