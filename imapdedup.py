@@ -205,15 +205,21 @@ def get_message_id(
     try:
         if options_use_checksum:
             md5 = hashlib.md5()
-            md5.update(("From:" + str_header(parsed_message, "From")).encode())
-            md5.update(("To:" + str_header(parsed_message, "To")).encode())
-            md5.update(("Subject:" + str_header(parsed_message, "Subject")).encode())
-            md5.update(("Date:" + str_header(parsed_message, "Date")).encode())
-            md5.update(("Cc:" + str_header(parsed_message, "Cc")).encode())
-            md5.update(("Bcc:" + str_header(parsed_message, "Bcc")).encode())
+            sha = hashlib.sha256()
+            sha3 = hashlib.sha3_256()
+            def update(x):
+                md5.update(x)
+                sha.update(x)
+                sha3.update(x)
+            update(("From:" + str_header(parsed_message, "From")).encode())
+            update(("To:" + str_header(parsed_message, "To")).encode())
+            update(("Subject:" + str_header(parsed_message, "Subject")).encode())
+            update(("Date:" + str_header(parsed_message, "Date")).encode())
+            update(("Cc:" + str_header(parsed_message, "Cc")).encode())
+            update(("Bcc:" + str_header(parsed_message, "Bcc")).encode())
             if options_use_id_in_checksum:
-                md5.update(("Message-ID:" + str_header(parsed_message, "Message-ID")).encode())
-            msg_id = md5.hexdigest()
+                update(("Message-ID:" + str_header(parsed_message, "Message-ID")).encode())
+            msg_id = md5.hexdigest() + "|" + sha.hexdigest() + "|" + sha3.hexdigest()
             # print(msg_id)
         else:
             msg_id = str_header(parsed_message, "Message-ID")
