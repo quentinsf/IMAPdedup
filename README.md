@@ -67,10 +67,14 @@ If you have a hierarchy of folders, you can search recursively within the childr
 
 # Specifying the password
 
-If you don't wish to specify a password via a command-line argument, where it could be seen by other users of the system, and you don't want to type it in each time, you have two options:
+If you don't wish to specify a password via a command-line argument, where it could be seen by other users of the system, and you don't want to type it in each time, you have three options:
 
 * You can put it in an environment variable called IMAPDEDUP_PASSWORD, or
-* You can specify it in a wrapper script as described below.
+* You can specify it in a wrapper script as described below, or
+* You can put it into [keyring](https://pypi.org/project/keyring/).
+
+The last option required to install [keyring](https://pypi.org/project/keyring/) library and allows to use option `-K` that is specified your system keyring name that will be used to get password for specified account via option `-u`.
+
 
 # Use with a config file (a wrapper script)
 

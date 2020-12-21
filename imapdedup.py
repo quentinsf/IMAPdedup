@@ -72,6 +72,7 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
     parser.add_option("-x", "--ssl", dest="ssl", action="store_true", help="Use SSL")
     parser.add_option("-X", "--starttls", dest="starttls", action="store_true", help="Require STARTTLS")
     parser.add_option("-u", "--user", dest="user", help="IMAP user name")
+    parser.add_option("-K", "--keyring", dest="keyring", help="Keyring name to get password")
     parser.add_option(
         "-w",
         "--password",
@@ -157,6 +158,10 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
     if options.use_id_in_checksum and not options.use_checksum:
         sys.stderr.write("\nError: If you use -m you must also use -c.\n")
         sys.exit(1)
+
+    if options.keyring:
+        import keyring
+        options.password = keyring.get_password(options.keyring, options.user)
 
     if not options.password and not options.process:
         # Read from IMAPDEDUP_PASSWORD env variable, or prompt for one.
