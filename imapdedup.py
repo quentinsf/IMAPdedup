@@ -133,6 +133,13 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         action="store_true",
         help="Remove duplicates recursively",
     )
+    parser.add_option(
+        "-R",
+        "--reverse",
+        dest="reverse",
+        action="store_true",
+        help="Walk through specified folder inreverse order",
+    )
 
     parser.set_defaults(
         verbose=False,
@@ -141,6 +148,7 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         dry_run=False,
         no_close=False,
         just_list=False,
+        reverse=False,
         recursive=False
     )
     (options, mboxes) = parser.parse_args(args)
@@ -418,6 +426,11 @@ def process(options, mboxes: List[str]):
             mboxes.append(mb)
         print("Working recursively from mailbox %s. There are %d total mailboxes." % (parent, len(mboxes)))
 
+    if options.reverse:
+        mboxes.reverse()
+
+    if len(mboxes) > 1:
+        print("Working with mailboxes in order: %s" % (", ".join(mboxes)))
 
     # OK - let's get started.
     # Iterate through a set of named mailboxes and delete the later messages discovered.
