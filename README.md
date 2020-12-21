@@ -71,9 +71,9 @@ If you don't wish to specify a password via a command-line argument, where it co
 
 * You can put it in an environment variable called IMAPDEDUP_PASSWORD, or
 * You can specify it in a wrapper script as described below, or
-* You can put it into [keyring](https://pypi.org/project/keyring/).
+* You can put it into your system's [keyring](https://pypi.org/project/keyring/).
 
-The last option required to install [keyring](https://pypi.org/project/keyring/) library and allows to use option `-K` that is specified your system keyring name that will be used to get password for specified account via option `-u`.
+For the last option you'll need to pip install [keyring](https://pypi.org/project/keyring/). You can then use `-K` to specify a system keyring name that will be used to get the password for the account specified via option `-u`.
 
 
 # Use with a config file (a wrapper script)
@@ -152,7 +152,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jonathan Vanasco and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jonathan Vanasco, Kirill A. Korinsky and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 
