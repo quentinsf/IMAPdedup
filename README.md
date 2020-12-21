@@ -65,6 +65,8 @@ You can specify multiple folders to work on, and it work through them in order a
 
 If you have a hierarchy of folders, you can search recursively within the children of a particular folder using the `-r` option and specifying the top-level folder.
 
+You can use the `-R` option to reverse the order in which the folders are processed.  The main use of this is with recursive searches, if you want duplicates of messages found in child folders to be removed from the parents, rather than the other way around.
+
 # Specifying the password
 
 If you don't wish to specify a password via a command-line argument, where it could be seen by other users of the system, and you don't want to type it in each time, you have three options:

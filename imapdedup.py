@@ -138,7 +138,7 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         "--reverse",
         dest="reverse",
         action="store_true",
-        help="Walk through specified folder inreverse order",
+        help="Walk through the folders in reverse order",
     )
 
     parser.set_defaults(
