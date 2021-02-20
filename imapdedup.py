@@ -185,6 +185,8 @@ list_response_pattern = re.compile(
 
 
 def parse_list_response(line: bytes):
+    if not isinstance(line, bytes):
+        return None
     m = list_response_pattern.match(line)
     if m is None:
         sys.stderr.write("\nError: parsing list response '{}'".format(str(line)))
@@ -283,6 +285,8 @@ def get_mailbox_list(server: imaplib.IMAP4, directory: str = '""', pattern: str 
     """
     resp = []
     for mb in check_response(server.list(directory, pattern)):
+        if mb is None:
+            continue
         bits = parse_list_response(mb)
         if rb"\\Noselect" not in bits[0]:
             resp.append(bits[2].decode())
