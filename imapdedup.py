@@ -140,6 +140,9 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         action="store_true",
         help="Walk through the folders in reverse order",
     )
+    parser.add_option(
+        "-t", "--only-tag", dest="only_tag", action="store_true", help="Only tag duplicates instead of deleting them"
+    )
 
     parser.set_defaults(
         verbose=False,
@@ -149,7 +152,8 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         no_close=False,
         just_list=False,
         reverse=False,
-        recursive=False
+        recursive=False,
+        only_tag=False
     )
     (options, mboxes) = parser.parse_args(args)
     if ((not options.server) or (not options.user)) and not options.process:
@@ -325,10 +329,11 @@ def get_undeleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
     return resp
 
 
-def mark_messages_deleted(server: imaplib.IMAP4, msgs_to_delete: List[int]):
+def mark_messages_deleted(server: imaplib.IMAP4, msgs_to_delete: List[int], only_tag):
     message_ids = ",".join(map(str, msgs_to_delete))
+    action = only_tag and r"duplicated" or r"(\Deleted)"
     check_response(
-        server.store(message_ids, "+FLAGS", r"(\Deleted)")
+        server.store(message_ids, "+FLAGS", action)
     )
 
 def get_msg_headers(server: imaplib.IMAP4, msg_ids: List[int]) -> List[Tuple[int, bytes]]:
@@ -493,10 +498,11 @@ def process(options, mboxes: List[str]):
                         # deleted in this mailbox.
                         if msg_id in msg_ids:
                             print(
-                                "Message %s_%s is a duplicate of %s and %s be marked as deleted"
+                                "Message %s_%s is a duplicate of %s and %s be %s"
                                 % (
                                     mbox, mnum, msg_ids[msg_id],
                                     options.dry_run and "would" or "will",
+                                    options.only_tag and "tagged as 'duplicated'" or "marked as deleted",
                                 ) 
                             )
                             if options.show or options.verbose:
@@ -531,28 +537,38 @@ def process(options, mboxes: List[str]):
                 if options.dry_run:
                     print(
                         "If you had NOT selected the 'dry-run' option,\n"
-                        "  %i messages would now be marked as 'deleted'."
-                        % (len(msgs_to_delete))
+                        "  %i messages would now be %s."
+                        % (
+                            len(msgs_to_delete),
+                            options.only_tag and "tagged as 'duplicated'" or "marked as deleted",
+                        )
                     )
 
                 else:
-                    
-                    print("Marking %i messages as deleted..." % (len(msgs_to_delete)))
+                    if options.only_tag:
+                        print("Tagging %i messages as 'duplicated'..." % (len(msgs_to_delete)))
+                    else:
+                        print("Marking %i messages as deleted..." % (len(msgs_to_delete)))
                     # Deleting messages one at a time can be slow if there are many,
                     # so we batch them up.
                     chunkSize = 30
                     if options.verbose:
                         print("(in batches of %d)" % chunkSize)
                     for i in range(0, len(msgs_to_delete), chunkSize):
-                        mark_messages_deleted(server, msgs_to_delete[i: i + chunkSize])
+                        mark_messages_deleted(server, msgs_to_delete[i: i + chunkSize], options.only_tag)
                         if options.verbose:
                             print("Batch starting at item %d marked." % i)
                     print("Confirming new numbers...")
                     numdeleted = len(get_deleted_msgnums(server, options.sent_before))
                     numundel = len(get_undeleted_msgnums(server, options.sent_before))
                     print(
-                        "There are now %s messages marked as deleted and %s others in %s."
-                        % (numdeleted, numundel, mbox)
+                        "There are now %s messages %s and %s others in %s."
+                        % (
+                            options.only_tag and "tagged as 'duplicated'" or "marked as deleted",
+                            numdeleted,
+                            numundel,
+                            mbox
+                        )
                     )
 
         if not options.no_close:
