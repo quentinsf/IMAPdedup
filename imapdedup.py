@@ -47,6 +47,9 @@ from email.header import decode_header
 # imposed in certain imaplib versions.
 # imaplib._MAXLINE = max(2000000, imaplib._MAXLINE)
 
+# If you choose the '-t' option, what tag (IMAP flag name)
+# shall we use on the server?
+TAG_NAME='duplicated'
 
 class ImapDedupException(Exception):
     pass
@@ -141,7 +144,8 @@ def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
         help="Walk through the folders in reverse order",
     )
     parser.add_option(
-        "-t", "--only-tag", dest="only_tag", action="store_true", help="Only tag duplicates instead of deleting them"
+        "-t", "--only-tag", dest="only_tag", action="store_true", 
+        help="Tag duplicates with '%s' instead of deleting them" % TAG_NAME
     )
 
     parser.set_defaults(
@@ -302,7 +306,7 @@ def get_deleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
     """
     resp = []
     query = "DELETED"
-    if (sent_before != None):
+    if (sent_before is not None):
         query = query + " SENTBEFORE " + sent_before
         print("Getting deleted messages sent before " + sent_before)
     deleted_info = check_response(server.search(None, query))
@@ -318,7 +322,7 @@ def get_undeleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
     """
     resp = []
     query = "UNDELETED"
-    if (sent_before != None):
+    if (sent_before is not None):
         query = query + " SENTBEFORE " + sent_before
         print("Getting undeleted messages sent before " + sent_before)
     undeleted_info = check_response(server.search(None, query))
@@ -328,10 +332,25 @@ def get_undeleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
         resp = [int(n) for n in undeleted_info[0].split()]
     return resp
 
+def get_tagged_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
+    """
+    Return a list of ids of tagged messages in the folder.
+    """
+    resp = []
+    query = "KEYWORD %s" % TAG_NAME
+    if (sent_before is not None):
+        query = query + " SENTBEFORE " + sent_before
+        print("Getting tagged messages sent before " + sent_before)
+    tagged_info = check_response(server.search(None, query))
+    if tagged_info:   
+        # If neither None nor empty, then
+        # the first item should be a list of msg ids
+        resp = [int(n) for n in tagged_info[0].split()]
+    return resp
 
 def mark_messages_deleted(server: imaplib.IMAP4, msgs_to_delete: List[int], only_tag):
     message_ids = ",".join(map(str, msgs_to_delete))
-    action = only_tag and r"duplicated" or r"(\Deleted)"
+    action = TAG_NAME if only_tag else r"(\Deleted)"
     check_response(
         server.store(message_ids, "+FLAGS", action)
     )
@@ -395,6 +414,8 @@ def process(options, mboxes: List[str]):
         )
         sys.stderr.write("%s\n\n" % e)
         sys.exit(1)
+
+    #  server.debug = 4  # If you want to see what's going on
 
     if ("STARTTLS" in server.capabilities) and hasattr(server, "starttls"):
         server.starttls()
@@ -502,7 +523,7 @@ def process(options, mboxes: List[str]):
                                 % (
                                     mbox, mnum, msg_ids[msg_id],
                                     options.dry_run and "would" or "will",
-                                    options.only_tag and "tagged as 'duplicated'" or "marked as deleted",
+                                    "tagged as '%s'" % TAG_NAME if options.only_tag else "marked as deleted",
                                 ) 
                             )
                             if options.show or options.verbose:
@@ -540,13 +561,13 @@ def process(options, mboxes: List[str]):
                         "  %i messages would now be %s."
                         % (
                             len(msgs_to_delete),
-                            options.only_tag and "tagged as 'duplicated'" or "marked as deleted",
+                            "tagged as '%s'" % TAG_NAME if options.only_tag else "marked as deleted",
                         )
                     )
 
                 else:
                     if options.only_tag:
-                        print("Tagging %i messages as 'duplicated'..." % (len(msgs_to_delete)))
+                        print("Tagging %i messages as '%s'..." % (len(msgs_to_delete), TAG_NAME))
                     else:
                         print("Marking %i messages as deleted..." % (len(msgs_to_delete)))
                     # Deleting messages one at a time can be slow if there are many,
@@ -562,13 +583,14 @@ def process(options, mboxes: List[str]):
                     numdeleted = len(get_deleted_msgnums(server, options.sent_before))
                     numundel = len(get_undeleted_msgnums(server, options.sent_before))
                     print(
-                        "There are now %s messages %s and %s others in %s."
-                        % (
-                            options.only_tag and "tagged as 'duplicated'" or "marked as deleted",
-                            numdeleted,
-                            numundel,
-                            mbox
-                        )
+                        "There are now %s messages marked as deleted and %s others in %s."
+                        % (numdeleted, numundel, mbox)
+                    )
+                    if options.only_tag:
+                        numtagged = len(get_tagged_msgnums(server, options.sent_before))
+                        print(
+                        "There are now %s messages tagged as '%s' in %s."
+                        % (numtagged, TAG_NAME, mbox)
                     )
 
         if not options.no_close:
