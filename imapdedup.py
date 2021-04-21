@@ -300,15 +300,15 @@ def get_mailbox_list(server: imaplib.IMAP4, directory: str = '""', pattern: str 
             resp.append(bits[2].decode())
     return resp
 
-def get_deleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
+
+def get_matching_msgnums(server: imaplib.IMAP4, query: str, sent_before: Optional[str]) -> List[int]:
     """
     Return a list of ids of deleted messages in the folder.
     """
     resp = []
-    query = "DELETED"
     if (sent_before is not None):
         query = query + " SENTBEFORE " + sent_before
-        print("Getting deleted messages sent before " + sent_before)
+        print("Getting matching messages sent before " + sent_before)
     deleted_info = check_response(server.search(None, query))
     if deleted_info:   
         # If neither None nor empty, then
@@ -316,39 +316,25 @@ def get_deleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
         resp = [int(n) for n in deleted_info[0].split()]
     return resp
 
-def get_undeleted_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
+def get_deleted_msgnums(server: imaplib.IMAP4, sent_before: Optional[str]) -> List[int]:
+    """
+    Return a list of ids of deleted messages in the folder.
+    """
+    return get_matching_msgnums(server, "DELETED", sent_before)
+
+def get_undeleted_msgnums(server: imaplib.IMAP4, sent_before: Optional[str]) -> List[int]:
     """
     Return a list of ids of non-deleted messages in the folder.
     """
-    resp = []
-    query = "UNDELETED"
-    if (sent_before is not None):
-        query = query + " SENTBEFORE " + sent_before
-        print("Getting undeleted messages sent before " + sent_before)
-    undeleted_info = check_response(server.search(None, query))
-    if undeleted_info:   
-        # If neither None nor empty, then
-        # the first item should be a list of msg ids
-        resp = [int(n) for n in undeleted_info[0].split()]
-    return resp
+    return get_matching_msgnums(server, "UNDELETED", sent_before)
 
-def get_tagged_msgnums(server: imaplib.IMAP4, sent_before) -> List[int]:
+def get_tagged_msgnums(server: imaplib.IMAP4, sent_before: Optional[str]) -> List[int]:
     """
     Return a list of ids of tagged messages in the folder.
     """
-    resp = []
-    query = "KEYWORD %s" % TAG_NAME
-    if (sent_before is not None):
-        query = query + " SENTBEFORE " + sent_before
-        print("Getting tagged messages sent before " + sent_before)
-    tagged_info = check_response(server.search(None, query))
-    if tagged_info:   
-        # If neither None nor empty, then
-        # the first item should be a list of msg ids
-        resp = [int(n) for n in tagged_info[0].split()]
-    return resp
+    return get_matching_msgnums(server,  "KEYWORD %s" % TAG_NAME, sent_before)
 
-def mark_messages_deleted(server: imaplib.IMAP4, msgs_to_delete: List[int], only_tag):
+def mark_messages_deleted(server: imaplib.IMAP4, msgs_to_delete: List[int], only_tag: bool):
     message_ids = ",".join(map(str, msgs_to_delete))
     action = TAG_NAME if only_tag else r"(\Deleted)"
     check_response(
@@ -367,7 +353,7 @@ def get_msg_headers(server: imaplib.IMAP4, msg_ids: List[int]) -> List[Tuple[int
 
     # There are two lines per message in the response
     resp: List[Tuple[int, bytes]] = []
-    for ci in range(0, len(ms) // 2):
+    for ci in range(len(ms) // 2):
         mnum = int(msg_ids[ci])
         _, hinfo = ms[ci * 2]
         resp.append((mnum, hinfo))
