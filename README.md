@@ -63,7 +63,7 @@ The process can take some time on large folders or slow connections, so you may 
 
 The `-t` option will, instead of marking messages for deletion, attempt to tag them with the custom tag `duplicated`.  Note that not all IMAP servers will allow the creation of custom tags, and not all mail programs will allow you to view them.  Still, this can be a useful option if your software supports it!
 
-You can specify multiple folders to work on, and it work through them in order and will delete or tag, in the later folders, duplicates of messages that it has found either in those folders or in earlier ones.
+You can specify multiple folders to work on, and it work through them in order and will delete or tag, in the later folders, duplicates of messages that it has found either in those folders or in earlier ones.   A warning: If you specify the same mailbox *twice*, it will look at it a second time, see a whole load of messages it has seen before and so delete them all as duplicates!  You have been warned, and that's why you should use the `-n` option first.  Don't ask me how I discovered this...
 
 If you have a hierarchy of folders, you can search recursively within the children of a particular folder using the `-r` option and specifying the top-level folder.
 
@@ -80,44 +80,33 @@ If you don't wish to specify a password via a command-line argument, where it co
 For the last option you'll need to pip install [keyring](https://pypi.org/project/keyring/). You can then use `-K` to specify a system keyring name that will be used to get the password for the account specified via option `-u`.
 
 
-# Use with a config file (a wrapper script)
+# Use from an external script
 
-Michael Haggerty made some small changes to facilitate calling imapdedup from a script (e.g., from a cron job).  Instead of running it directly, create a wrapper script that can be as simple as:
+We don't curently have a way of storing your options in a configuration file, but you can call imapdedup from your own script. Construct a list of arguments as you'd put them on the command line, and then process them using something like the following:
 
-    #! /usr/bin/env python
+    #! /usr/bin/env python3
 
     import imapdedup
 
-    class options:
-        server = 'imap.example.com'
-        port = None
-        ssl = True
-        user = 'me'
-        password = 'Pa$$w0rd'
-        verbose = False
-        dry_run = False
-        use_checksum = False
-        use_id_in_checksum = False
-        just_list = False
-        no_close = False
-        process = False
-        recursive = False
+    options = [
+        "-s", "imap.example.com", 
+        "-u", "my_user_name",
+        "-w", "my_password",
+        "-x"
+    ]
 
     mboxes = [
         'INBOX',
         'Some other mailbox',
-        ]
+    ]
 
-    imapdedup.process(options, mboxes)
-
-Note that you will normally need to include in your options class **ALL of the options** that you might specify on the command line.
-If new options are added to the main imapdedup.py script, you'll need to update your wrapper script to specify them.
+    imapdedup.process(*imapdedup.get_arguments(options + mboxes))
 
 If you on a shared machine or filesystem and you are including sensitive information such as the password in this file, you may wish to set its permissions appropriately.
 
 ## Checking ALL of your mailboxes
 
-Several people have asked for an option to check for duplicates across all of your mailboxes.  This isn't built-in for a couple of reasons.  The main one is that when you specify multiple folders on the command line, IMAPdedup will search them in order, deleting duplicate messages from the later ones if they have been found in the earlier ones.   If we added an 'All folders' option, we'd need a way to specify which ones came first: if you find duplicates in two or more mailboxes, which one(s) should be deleted?
+Several people have asked for an option to check for duplicates across ALL of your mailboxes.  This isn't built-in for a couple of reasons.  The main one is that when you specify multiple folders on the command line, IMAPdedup will search them in order, deleting duplicate messages from the later ones if they have been found in the earlier ones.   If we added an 'All folders' option, we'd need a way to specify which ones came first: if you find duplicates in two or more mailboxes, which one(s) should be deleted?
 
 So my proposed workaround if you're in this situation is to ask the program for a list of all your folders, put those in a file, edit that file as wanted (e.g. to change the order, or exclude particular folders), and then use `xargs` to pass all the folder names in the file to IMAPdedup.
 

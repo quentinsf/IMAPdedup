@@ -32,7 +32,7 @@ import getpass
 import hashlib
 import imaplib
 import os
-import optparse
+import argparse
 import re
 import socket
 import sys
@@ -55,111 +55,109 @@ class ImapDedupException(Exception):
     pass
 
 
-# IMAP responses should normally begin 'OK' - we strip that off
 def check_response(resp: Tuple[str, List[bytes]]):
+    """
+    IMAP responses should normally begin 'OK'. Strip that off, or raise
+    an exception if it isn't there.
+    """
     status, value = resp
     if status != "OK":
         raise ImapDedupException("Got response: %s from server" % str(value))
     return value
 
 
-def get_arguments(args: List[str]) -> Tuple[optparse.Values, List[str]]:
-    # Get arguments and create link to server
+def get_arguments(args: Optional[List[str]] = None) -> Tuple[argparse.Namespace, List[str]]:
+    """
+    Parse the given command-line arguments - defaults to using sys.argv
+    """
 
-    parser = optparse.OptionParser(usage="%prog [options] <mailboxname> [<mailboxname> ...]")
-    parser.add_option(
+    parser = argparse.ArgumentParser(
+        description="Mark duplicate messages in IMAP mailboxes for deletion"
+    )
+    parser.add_argument(
         "-P", "--process", dest="process", help="IMAP process to access mailboxes"
     )
-    parser.add_option("-s", "--server", dest="server", help="IMAP server")
-    parser.add_option("-p", "--port", dest="port", help="IMAP server port", type="int")
-    parser.add_option("-x", "--ssl", dest="ssl", action="store_true", help="Use SSL")
-    parser.add_option("-X", "--starttls", dest="starttls", action="store_true", help="Require STARTTLS")
-    parser.add_option("-u", "--user", dest="user", help="IMAP user name")
-    parser.add_option("-K", "--keyring", dest="keyring", help="Keyring name to get password")
-    parser.add_option(
+    parser.add_argument("-s", "--server", dest="server", help="IMAP server")
+    parser.add_argument("-p", "--port", dest="port", help="IMAP server port", type=int)
+    parser.add_argument("-x", "--ssl", dest="ssl", action="store_true", help="Use SSL")
+    parser.add_argument("-X", "--starttls", dest="starttls", action="store_true", help="Require STARTTLS")
+    parser.add_argument("-u", "--user", dest="user", help="IMAP user name")
+    parser.add_argument("-K", "--keyring", dest="keyring", help="Keyring name to get password")
+    parser.add_argument(
         "-w",
         "--password",
         dest="password",
         help="IMAP password (Will prompt if not specified)",
     )
-    parser.add_option(
+    parser.add_argument(
         "-v", "--verbose", dest="verbose", action="store_true", help="Verbose mode"
     )
-    parser.add_option(
+    parser.add_argument(
         "-S", "--show", dest="show", action="store_true", help="Show duplicated messages"
     )
-    parser.add_option(
+    parser.add_argument(
         "-n",
         "--dry-run",
         dest="dry_run",
         action="store_true",
         help="Don't actually do anything, just report what would be done",
     )
-    parser.add_option(
+    parser.add_argument(
         "-c",
         "--checksum",
         dest="use_checksum",
         action="store_true",
         help="Use a checksum of several mail headers, instead of the Message-ID",
     )
-    parser.add_option(
+    parser.add_argument(
         "-b",
         "--sentbefore",
         dest="sent_before",
         help="Only process messages sent before given date, given as d-m-y, e.g: 1-Feb-2020. Useful when there are many duplicates of each message",
     )
-    parser.add_option(
+    parser.add_argument(
         "-m",
         "--checksum-with-id",
         dest="use_id_in_checksum",
         action="store_true",
         help="Include the Message-ID (if any) in the -c checksum.",
     )
-    parser.add_option(
-        "",
+    parser.add_argument(
         "--no-close",
         dest="no_close",
         action="store_true",
         help='Do not "close" mailbox when done. Some servers will purge deleted messages on a close command.',
     )
-    parser.add_option(
+    parser.add_argument(
         "-l",
         "--list",
         dest="just_list",
         action="store_true",
         help="Just list mailboxes",
     )
-    parser.add_option(
+    parser.add_argument(
         "-r",
         "--recursive",
         dest="recursive",
         action="store_true",
         help="Remove duplicates recursively",
     )
-    parser.add_option(
+    parser.add_argument(
         "-R",
         "--reverse",
         dest="reverse",
         action="store_true",
         help="Walk through the folders in reverse order",
     )
-    parser.add_option(
+    parser.add_argument(
         "-t", "--only-tag", dest="only_tag", action="store_true", 
         help="Tag duplicates with '%s' instead of deleting them" % TAG_NAME
     )
+    parser.add_argument('mailbox', nargs='*')
 
-    parser.set_defaults(
-        verbose=False,
-        show=False,
-        ssl=False,
-        dry_run=False,
-        no_close=False,
-        just_list=False,
-        reverse=False,
-        recursive=False,
-        only_tag=False
-    )
-    (options, mboxes) = parser.parse_args(args)
+    options = parser.parse_args(args)
+    mboxes = options.mailbox
+
     if ((not options.server) or (not options.user)) and not options.process:
         sys.stderr.write(
             "\nError: Must specify server, user, and at least one mailbox.\n\n"
@@ -191,7 +189,6 @@ list_response_pattern = re.compile(
     rb'\((?P<flags>.*?)\) "(?P<delimiter>.*)" (?P<name>.*)'
 )
 
-
 def parse_list_response(line: bytes):
     if not isinstance(line, bytes):
         return None
@@ -211,10 +208,7 @@ def str_header(parsed_message: Message, name: str) -> str:
     """
     hdrlist = decode_header(parsed_message.get(name, ""))
     btext, charset = hdrlist[0]
-    if isinstance(btext, str):
-        text = btext
-    else:
-        text = btext.decode("utf-8", "ignore")
+    text = btext if isinstance(btext, str) else btext.decode("utf-8", "ignore")
     return text.lstrip()
 
 
@@ -268,6 +262,7 @@ def get_message_id(
                 print("You might want to use the -c option.")
                 return None
         return msg_id.lstrip()
+
     except (ValueError, HeaderParseError):
         print(
             "WARNING: There was an exception trying to parse the headers of this message."
@@ -587,11 +582,6 @@ def process(options, mboxes: List[str]):
     finally:
         server.logout()
 
-
-def main(args: List[str]):
-    options, mboxes = get_arguments(args)
-    process(options, mboxes)
-
-
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    options, mboxes = get_arguments()
+    process(options, mboxes)
