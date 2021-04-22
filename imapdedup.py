@@ -215,7 +215,7 @@ def str_header(parsed_message: Message, name: str) -> str:
         text = btext
     else:
         text = btext.decode("utf-8", "ignore")
-    return text
+    return text.lstrip()
 
 
 def get_message_id(
@@ -267,7 +267,7 @@ def get_message_id(
                 )
                 print("You might want to use the -c option.")
                 return None
-        return msg_id
+        return msg_id.lstrip()
     except (ValueError, HeaderParseError):
         print(
             "WARNING: There was an exception trying to parse the headers of this message."
