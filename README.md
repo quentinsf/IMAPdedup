@@ -156,7 +156,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, 'jengels', Jonathan Vanasco, Kirill A. Korinsky and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 
