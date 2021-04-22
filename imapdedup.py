@@ -310,8 +310,8 @@ def get_matching_msgnums(server: imaplib.IMAP4, query: str, sent_before: Optiona
         query = query + " SENTBEFORE " + sent_before
         print("Getting matching messages sent before " + sent_before)
     deleted_info = check_response(server.search(None, query))
-    if deleted_info:   
-        # If neither None nor empty, then
+    if deleted_info and deleted_info[0]:   
+        # If neither None nor empty nor [None], then
         # the first item should be a list of msg ids
         resp = [int(n) for n in deleted_info[0].split()]
     return resp
