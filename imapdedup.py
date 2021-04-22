@@ -250,7 +250,7 @@ def get_message_id(
             update(("Cc:" + str_header(parsed_message, "Cc")).encode())
             update(("Bcc:" + str_header(parsed_message, "Bcc")).encode())
             if options_use_id_in_checksum:
-                update(("Message-ID:" + str_header(parsed_message, "Message-ID")).encode())
+                update(("Message-ID:" + str_header(parsed_message, "Message-ID").lstrip()).encode()) #Strip any whitespace left of the string, i.e. when the id is indentated with \n\t
             msg_id = md5.hexdigest() + "|" + sha.hexdigest() + "|" + sha3.hexdigest()
             # print(msg_id)
         else:
@@ -267,7 +267,7 @@ def get_message_id(
                 )
                 print("You might want to use the -c option.")
                 return None
-        return msg_id
+        return msg_id.lstrip() #Strip any whitespace left of the string, i.e. when the id is indentated with \n\t
     except (ValueError, HeaderParseError):
         print(
             "WARNING: There was an exception trying to parse the headers of this message."
