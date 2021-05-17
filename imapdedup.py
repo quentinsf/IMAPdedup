@@ -43,6 +43,11 @@ from email.message import Message
 from email.errors import HeaderParseError
 from email.header import decode_header
 
+# Increase the maximum line length that imaplib expects back
+# from the server, since we're often dealing with big folders
+# and large numbers of messages.
+imaplib._MAXLINE = 10_000_000
+
 # Increase the rather small limit on result line-length
 # imposed in certain imaplib versions.
 # imaplib._MAXLINE = max(2000000, imaplib._MAXLINE)
