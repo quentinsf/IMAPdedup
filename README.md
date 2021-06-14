@@ -9,7 +9,7 @@ To be more exact, it *marks* the second and later occurrences of a message as 'd
 
 Some mail clients will let you still view such messages *in situ*, so you can take a look at what's happened before 'compacting' the mailbox.  Sometimes deleted messages appear in a 'Trash' folder.  Sometimes they are hidden and can be displayed and un-deleted if wanted, until they are purged.
 
-Whatever your system does, you will usually have the option to see what has been deleted, and to recover it if needed, using your email program, after running this script.  (If your server purges the deleted messages automatically, you may be able to prevent this with the `--no-close` option. See also the `-t` option if your IMAP server supports custom tags.)
+Whatever your system does, you will usually have the option to see what has been deleted, and to recover it if needed, using your email program, after running this script.  (If your server purges the deleted messages automatically, you may be able to prevent this with the `--no-close` option.)  There is also a 'dry-run' option so you can check what might happen before doing anything scary.
 
 ## How it works
 
@@ -102,7 +102,7 @@ We don't curently have a way of storing your options in a configuration file, bu
 
     imapdedup.process(*imapdedup.get_arguments(options + mboxes))
 
-If you on a shared machine or filesystem and you are including sensitive information such as the password in this file, you may wish to set its permissions appropriately.
+If you are on a shared machine or filesystem and you are including sensitive information such as the password in this file, you may wish to set its permissions appropriately.
 
 ## Checking ALL of your mailboxes
 
@@ -110,7 +110,7 @@ Several people have asked for an option to check for duplicates across ALL of yo
 
 So my proposed workaround if you're in this situation is to ask the program for a list of all your folders, put those in a file, edit that file as wanted (e.g. to change the order, or exclude particular folders), and then use `xargs` to pass all the folder names in the file to IMAPdedup.
 
-Here's a quick demo. Imagine you normally run this:
+Here's a quick demo. Imagine you normally run IMAPdedup like this:
 
     ./imapdedup.py -x -s servername -u username -w password ...
 
@@ -118,7 +118,7 @@ You can save your list of folders to a file called folders.txt like this:
 
     ./imapdedup.py -x -s servername -u username -w password -l > folders.txt
 
-The `xargs` utility lets you read words (or lines) from the standard input, and run any command passing those words as arguments to the command, so you can do something like this (I've included the -n so it's a dry run and should be safe if you try it!):
+The standard unix `xargs` utility lets you read a list of words (or lines) from the standard input and run another command passing those words from the list as arguments. So you can do something like this (I've included the -n so it's a dry run and should be safe if you try it!):
 
     cat folders.txt | xargs ./imapdedup.py -x -s servername -u username -w password -n
 
