@@ -78,8 +78,8 @@ If you don't wish to specify a password via a command-line argument, where it co
 * You can put it into your system's [keyring](https://pypi.org/project/keyring/).
 * Authenticate as one user (typically an "admin" user) and then impersonate the user that you really want.
 
+For the "authuser" option, specify the option `-a` with the ID of the target user and the password of the "admin" user.
 For the keyring option you'll need to pip install [keyring](https://pypi.org/project/keyring/). You can then use `-K` to specify a system keyring name that will be used to get the password for the account specified via option `-u`.
-For the "authuser" option, specify the option `-a` with the ID of the target user and the password of the "admin" user/
 
 # Use from an external script
 
