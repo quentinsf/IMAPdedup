@@ -82,6 +82,7 @@ def get_arguments(args: Optional[List[str]] = None) -> Tuple[argparse.Namespace,
     parser.add_argument("-p", "--port", dest="port", help="IMAP server port", type=int)
     parser.add_argument("-x", "--ssl", dest="ssl", action="store_true", help="Use SSL")
     parser.add_argument("-X", "--starttls", dest="starttls", action="store_true", help="Require STARTTLS")
+    parser.add_option("-a", "--authuser", dest='authuser', help='IMAP admin user (e.g. for Zimbra)')
     parser.add_argument("-u", "--user", dest="user", help="IMAP user name")
     parser.add_argument("-K", "--keyring", dest="keyring", help="Keyring name to get password")
     parser.add_argument(
@@ -409,7 +410,11 @@ def process(options, mboxes: List[str]):
 
     try:
         if not options.process:
-            server.login(options.user, options.password)
+            if options.authuser:
+                authcb = lambda resp: "{0}\x00{1}\x00{2}".format(options.user,options.authuser,options.password)
+                server.authenticate("PLAIN", authcb)
+            else:
+                server.login(options.user, options.password)
     except:
         sys.stderr.write("\nError: Login failed\n")
         sys.exit(1)
