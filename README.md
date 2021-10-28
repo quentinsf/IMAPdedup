@@ -79,6 +79,10 @@ If you don't wish to specify a password via a command-line argument, where it co
 
 For the last option you'll need to pip install [keyring](https://pypi.org/project/keyring/). You can then use `-K` to specify a system keyring name that will be used to get the password for the account specified via option `-u`.
 
+# Authenticating as an admin user
+
+Some IMAP servers -- Zimbra's being one example -- allow an admin user to login and then perform actions on behalf of another user.   If your server supports this via the 'AUTHENTICATE PLAIN' command, then the `-a` option allows you to specify the admin username.  
+More information on this mechanism can be found in [RFC 3501](https://datatracker.ietf.org/doc/html/rfc3501#section-6.2.2) and [RFC 2595](https://datatracker.ietf.org/doc/html/rfc2595#section-6).
 
 # Use from an external script
 
@@ -145,7 +149,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky, Thomas Bullinger and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 
