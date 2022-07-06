@@ -61,7 +61,9 @@ The `-n` option tells IMAPdedup that this is a 'dry run': it stops it from *actu
 
 The process can take some time on large folders or slow connections, so you may want to add the `-v` option to give you more information on how it's progressing.
 
-The `-t` option will, instead of marking messages for deletion, attempt to tag them with the custom tag `duplicated`.  Note that not all IMAP servers will allow the creation of custom tags, and not all mail programs will allow you to view them.  Still, this can be a useful option if your software supports it!
+The `-y` option will copy messages to the specified mailbox before deleting them.  This will normally have the combined effect of moving any duplicates to another folder.
+
+The `-t` option will, instead of marking messages for deletion, attempt to tag them with the specified custom tag.  Note that not all IMAP servers will allow the creation of custom tags, and not all mail programs will allow you to view them.  Still, this can be a useful option if your software supports it!
 
 You can specify multiple folders to work on, and it work through them in order and will delete or tag, in the later folders, duplicates of messages that it has found either in those folders or in earlier ones.   A warning: If you specify the same mailbox *twice*, it will look at it a second time, see a whole load of messages it has seen before and so delete them all as duplicates!  You have been warned, and that's why you should use the `-n` option first.  Don't ask me how I discovered this...
 

@@ -48,10 +48,6 @@ from email.header import decode_header
 
 imaplib._MAXLINE = max(10_000_000, imaplib._MAXLINE)
 
-# If you choose the '-t' option, what tag (IMAP flag name)
-# shall we use on the server?
-TAG_NAME='duplicated'
-
 class ImapDedupException(Exception):
     pass
 
@@ -152,8 +148,12 @@ def get_arguments(args: Optional[List[str]] = None) -> Tuple[argparse.Namespace,
         help="Walk through the folders in reverse order",
     )
     parser.add_argument(
-        "-t", "--only-tag", dest="only_tag", action="store_true", 
-        help="Tag duplicates with '%s' instead of deleting them" % TAG_NAME
+        "-t", "--only-tag", dest="tag_name", 
+        help="Tag duplicates with specificied tag instead of deleting them"
+    )
+    parser.add_argument(
+        "-y", "--copy", dest="copy_mailbox", 
+        help="Copy messages to specified mailbox before deleting them from current location."
     )
     parser.add_argument('mailbox', nargs='*')
 
@@ -325,18 +325,29 @@ def get_undeleted_msgnums(server: imaplib.IMAP4, sent_before: Optional[str]) -> 
     """
     return get_matching_msgnums(server, "UNDELETED", sent_before)
 
-def get_tagged_msgnums(server: imaplib.IMAP4, sent_before: Optional[str]) -> List[int]:
+def get_tagged_msgnums(server: imaplib.IMAP4, tag_name: str, sent_before: Optional[str]) -> List[int]:
     """
     Return a list of ids of tagged messages in the folder.
     """
-    return get_matching_msgnums(server,  "KEYWORD %s" % TAG_NAME, sent_before)
+    return get_matching_msgnums(server, f"KEYWORD {tag_name}", sent_before)
 
-def mark_messages_deleted(server: imaplib.IMAP4, msgs_to_delete: List[int], only_tag: bool):
+
+def process_messages(server: imaplib.IMAP4, msgs_to_delete: List[int], tag_name: Optional[str] = None, copy_mailbox: Optional[str] = None):
+    """
+    Actually do whatever we want to do to duplicates.
+    Tag them with (\Deleted) or the specified tag_name.
+    Copy them to another mailbox first if copy_mailbox specified.
+    """
     message_ids = ",".join(map(str, msgs_to_delete))
-    action = TAG_NAME if only_tag else r"(\Deleted)"
+    action = tag_name or r"(\Deleted)"
+    if copy_mailbox:
+        check_response(
+            server.copy(message_ids, copy_mailbox)
+        )
     check_response(
         server.store(message_ids, "+FLAGS", action)
     )
+
 
 def get_msg_headers(server: imaplib.IMAP4, msg_ids: List[int]) -> List[Tuple[int, bytes]]:
     """
@@ -512,7 +523,7 @@ def process(options, mboxes: List[str]):
                                 % (
                                     mbox, mnum, msg_ids[msg_id],
                                     options.dry_run and "would" or "will",
-                                    "tagged as '%s'" % TAG_NAME if options.only_tag else "marked as deleted",
+                                    "tagged as '%s'" % options.tag_name if options.tag_name else "marked as deleted",
                                 ) 
                             )
                             if options.show or options.verbose:
@@ -545,13 +556,15 @@ def process(options, mboxes: List[str]):
                         "  %i messages would now be %s."
                         % (
                             len(msgs_to_delete),
-                            "tagged as '%s'" % TAG_NAME if options.only_tag else "marked as deleted",
+                            "tagged as '%s'" % options.tag_name if options.tag_name else "marked as deleted",
                         )
                     )
 
                 else:
-                    if options.only_tag:
-                        print("Tagging %i messages as '%s'..." % (len(msgs_to_delete), TAG_NAME))
+                    if options.copy_mailbox:
+                        print("Copying %i messages to '%s'..." % (len(msgs_to_delete), options.copy_mailbox))
+                    if options.tag_name:
+                        print("Tagging %i messages as '%s'..." % (len(msgs_to_delete), options.tag_name))
                     else:
                         print("Marking %i messages as deleted..." % (len(msgs_to_delete)))
                     # Deleting messages one at a time can be slow if there are many,
@@ -560,7 +573,7 @@ def process(options, mboxes: List[str]):
                     if options.verbose:
                         print("(in batches of %d)" % chunkSize)
                     for i in range(0, len(msgs_to_delete), chunkSize):
-                        mark_messages_deleted(server, msgs_to_delete[i: i + chunkSize], options.only_tag)
+                        process_messages(server, msgs_to_delete[i: i + chunkSize], options.tag_name, options.copy_mailbox)
                         if options.verbose:
                             print("Batch starting at item %d marked." % i)
                     print("Confirming new numbers...")
@@ -570,11 +583,11 @@ def process(options, mboxes: List[str]):
                         "There are now %s messages marked as deleted and %s others in %s."
                         % (numdeleted, numundel, mbox)
                     )
-                    if options.only_tag:
-                        numtagged = len(get_tagged_msgnums(server, options.sent_before))
+                    if options.tag_name:
+                        numtagged = len(get_tagged_msgnums(server, options.tag_name, options.sent_before))
                         print(
                         "There are now %s messages tagged as '%s' in %s."
-                        % (numtagged, TAG_NAME, mbox)
+                        % (numtagged, options.tag_name, mbox)
                     )
 
         if not options.no_close:
