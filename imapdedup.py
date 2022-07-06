@@ -8,7 +8,7 @@
 #  Default behaviour is purely to mark the duplicates as deleted.  Some mail clients
 #  will allow you to view these and undelete them if you change your mind.
 #
-#  Copyright (c) 2013-2020 Quentin Stafford-Fraser.
+#  Copyright (c) 2013-2022 Quentin Stafford-Fraser.
 #  All rights reserved, subject to the following:
 #
 #
@@ -63,7 +63,7 @@ def check_response(resp: Tuple[str, List[bytes]]):
     """
     status, value = resp
     if status != "OK":
-        raise ImapDedupException("Got response: %s from server" % str(value))
+        raise ImapDedupException(f"Got response: {str(value)} from server")
     return value
 
 
@@ -196,7 +196,7 @@ def parse_list_response(line: bytes):
         return None
     m = list_response_pattern.match(line)
     if m is None:
-        sys.stderr.write("\nError: parsing list response '{}'".format(str(line)))
+        sys.stderr.write(f"\nError: parsing list response '{line}'")
         sys.exit(1)
     flags, delimiter, mailbox_name = m.groups()
     mailbox_name = mailbox_name.strip(b'"')
@@ -304,8 +304,8 @@ def get_matching_msgnums(server: imaplib.IMAP4, query: str, sent_before: Optiona
     """
     resp = []
     if (sent_before is not None):
-        query = query + " SENTBEFORE " + sent_before
-        print("Getting matching messages sent before " + sent_before)
+        query = f"{query} SENTBEFORE {sent_before}"
+        print(f"Getting matching messages sent before {sent_before}")
     deleted_info = check_response(server.search(None, query))
     if deleted_info and deleted_info[0]:   
         # If neither None nor empty nor [None], then
@@ -473,15 +473,12 @@ def process(options, mboxes: List[str]):
 
             # Check how many messages are already marked 'deleted'...
             numdeleted = len(get_deleted_msgnums(server, options.sent_before))
-            print(
-                "%s message(s) currently marked as deleted in %s"
-                % (numdeleted or "No", mbox)
-            )
+            print(f'{numdeleted or "No"} message(s) currently marked as deleted in {mbox}')
 
             # Now get a list of the ones that aren't deleted. 
             # That's what we'll actually use.
             msgnums = get_undeleted_msgnums(server, options.sent_before)
-            print("%s others in %s" % (len(msgnums), mbox))
+            print(f"{len(msgnums)} others in {mbox}")
 
             chunkSize = 100
             if options.verbose:
@@ -497,7 +494,7 @@ def process(options, mboxes: List[str]):
                     mp = parser.parsebytes(hinfo)
 
                     if options.verbose:
-                        print("Checking %s message %s" % (mbox, mnum))
+                        print(f"Checking {mbox} message {mnum}")
                         # Store message only when verbose is enabled (to print it later on)
                         msg_map[mnum] = mp
 
@@ -528,18 +525,13 @@ def process(options, mboxes: List[str]):
                         else:
                             msg_ids[msg_id] = f"{mbox}_{mnum}"
 
-                print(
-                    (
-                        "%s message(s) in %s processed"
-                        % (min(len(msgnums), i + chunkSize), mbox)
-                    )
-                )
+                print(f"{min(len(msgnums), i + chunkSize)} message(s) in {mbox} processed")
 
             # OK - we've been through this mailbox, and msgs_to_delete holds
             # a list of the duplicates we've found.
 
-            if len(msgs_to_delete) == 0:
-                print("No duplicates were found in %s" % mbox)
+            if not msgs_to_delete:
+                print(f"No duplicates were found in {mbox}")
 
             else:
                 if options.verbose:
