@@ -79,7 +79,7 @@ If you don't wish to specify a password via a command-line argument, where it co
 * You can specify it in a wrapper script as described below, or
 * You can put it into your system's [keyring](https://pypi.org/project/keyring/).
 
-For the keyring option you'll need to pip install [keyring](https://pypi.org/project/keyring/). You can then use `-K` to specify a system keyring name that will be used to get the password for the account specified via option `-u`.
+For the keyring option you'll need to pip install [keyring](https://pypi.org/project/keyring/). You can then use `-K` to specify a system keyring name that will be used to get the password for the account specified via option `-u`.  If you just use `-K' without a value, the server name provided will be used as the keyring name.
 
 ## Authenticating as an admin user
 
