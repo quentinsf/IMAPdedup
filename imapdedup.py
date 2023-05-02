@@ -80,7 +80,14 @@ def get_arguments(args: Optional[List[str]] = None) -> Tuple[argparse.Namespace,
     parser.add_argument("-X", "--starttls", dest="starttls", action="store_true", help="Require STARTTLS")
     parser.add_argument("-u", "--user", dest="user", help="IMAP user name")
     parser.add_argument("-a", "--authuser", dest='authuser', help='IMAP admin user')
-    parser.add_argument("-K", "--keyring", dest="keyring", help="Keyring name to get password")
+    parser.add_argument(
+        "-K",
+        "--keyring",
+        dest="keyring",
+        nargs='?',
+        const='',
+        help="Keyring name to get password, no value means to use IMAP server name"
+    )
     parser.add_argument(
         "-w",
         "--password",
@@ -174,6 +181,9 @@ def get_arguments(args: Optional[List[str]] = None) -> Tuple[argparse.Namespace,
     if options.use_id_in_checksum and not options.use_checksum:
         sys.stderr.write("\nError: If you use -m you must also use -c.\n")
         sys.exit(1)
+
+    if options.keyring == '':
+        options.keyring = options.server
 
     if options.keyring:
         import keyring
