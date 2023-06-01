@@ -127,9 +127,11 @@ The standard unix `xargs` utility lets you read a list of words (or lines) from 
 
     cat folders.txt | xargs ./imapdedup.py -x -s servername -u username -w password -n
 
-xargs will basically run imapdedup with all the folder names in folders.txt passed as arguments as if you had typed them on the command line. *NOTE:* If your folder names have any spaces in them, you should open the text files in an editor and put quotes around each line that has them.
+xargs will basically run imapdedup with all the folder names in folders.txt passed as arguments as if you had typed them on the command line. *NOTE:* If your folder names have any spaces in them, you should open the text files in an editor and put quotes around each line that has them. Alternatively, you can use sed to do this for you:
 
-All of this does require you to be running on Linux or a Mac. Much harder to do anything like this on Windows, of course!
+    cat folders.txt | sed 's/^\(.*\)$/"\1"/' | xargs ./imapdedup.py -x -s servername -w pasword -u username -n
+
+All of this does require you to be running on Linux or a Mac. Much harder to do anything like this on Windows, of course, though WSL might make it easier.
 
 
 ## Accessing the IMAP mailboxes via a local server
@@ -150,7 +152,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky, Thomas Bullinger and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky, Thomas Bullinger, Stephen Schwetz and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 
