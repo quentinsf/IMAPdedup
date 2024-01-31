@@ -156,7 +156,7 @@ def get_arguments(args: Optional[List[str]] = None) -> Tuple[argparse.Namespace,
     )
     parser.add_argument(
         "-t", "--only-tag", dest="tag_name", 
-        help="Tag duplicates with specificied tag instead of deleting them"
+        help="Tag duplicates with specified tag instead of deleting them"
     )
     parser.add_argument(
         "-y", "--copy", dest="copy_mailbox", 
