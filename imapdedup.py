@@ -162,12 +162,19 @@ def get_arguments(args: Optional[List[str]] = None) -> Tuple[argparse.Namespace,
         "-y", "--copy", dest="copy_mailbox", 
         help="Copy messages to specified mailbox before deleting them from current location."
     )
+    parser.add_argument(
+        "-d",
+        "--delete",
+        dest="delete_marked_messages",
+        action="store_true",
+        help="Delete marked messages (expunge)"
+    )
     parser.add_argument('mailbox', nargs='*')
 
     options = parser.parse_args(args)
     mboxes = options.mailbox
 
-    if ((not options.server) or (not options.user)) and not options.process:
+    if (not options.server or not options.user) and not options.process:
         sys.stderr.write(
             "\nError: Must specify server, user, and at least one mailbox.\n\n"
         )
@@ -357,6 +364,11 @@ def process_messages(server: imaplib.IMAP4, msgs_to_delete: List[int], tag_name:
     check_response(
         server.store(message_ids, "+FLAGS", action)
     )
+
+
+def delete_marked_messages(server: imaplib.IMAP4):
+    print("Expunging deleted messages...")
+    check_response(server.expunge())
 
 
 def get_msg_headers(server: imaplib.IMAP4, msg_ids: List[int]) -> List[Tuple[int, bytes]]:
@@ -599,6 +611,8 @@ def process(options, mboxes: List[str]):
                         "There are now %s messages tagged as '%s' in %s."
                         % (numtagged, options.tag_name, mbox)
                     )
+            if options.delete_marked_messages:
+                delete_marked_messages(server)
 
         if not options.no_close:
             server.close()

@@ -71,6 +71,8 @@ If you have a hierarchy of folders, you can search recursively within the childr
 
 You can use the `-R` option to reverse the order in which the folders are processed.  The main use of this is with recursive searches, if you want duplicates of messages found in child folders to be removed from the parents, rather than the other way around.
 
+With the `-d` option, it's removes all marked messages from the server (Expunge).  This is a dangerous option, so use with caution!
+
 ## Specifying the password
 
 If you don't wish to specify a password via a command-line argument, where it could be seen by other users of the system, and you don't want to type it in each time, you have three options:
