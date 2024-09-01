@@ -3,7 +3,7 @@
 
 **Please note that recent versions require Python 3.6 or later**
 
-IMAPdedup is a Python script (imapdedup.py) that looks for duplicate messages in a set of IMAP mailboxes and tidies up all but the first copy of any duplicates found.
+IMAPdedup is a command-line utility that looks for duplicate messages in a set of IMAP mailboxes and tidies up all but the first copy of any duplicates found.
 
 To be more exact, it *marks* the second and later occurrences of a message as 'deleted' on the server.   Exactly what that does in your environment will depend on your mail server and your mail client.
 
@@ -21,21 +21,21 @@ And if you want to add the Message-ID, if it exists, into this checksum, add the
 
 ## Installation
 
-IMAPdedup doesn't *need* any installation process.  You can need Python 3 and can then just run the imapdedup.py file in `src/imapdedup`.
+IMAPdedup doesn't *need* any installation process and doesn't have any external dependencies.  You only need Python 3 and can then just run the imapdedup.py file in `src/imapdedup`. In this case, the command you would run would be something like:
+
+    python3 imapdedup.py ...
 
 However, you can now install it using pip:
 
     pip install imapdedup
 
-This will install the script and its dependencies, and you can then run it from the command line as `imapdedup`.  In the examples below, we'll assume you've done that.
+This will install the script and its dependencies, and you can then just run it from the command line as `imapdedup`.  In the examples below, we'll assume you've done that.
 
 ## Trying it out
 
 If you want to experiment, create a new folder on your mail server, and copy some messages into it from your inbox.  Then copy some of them in a second time.  And maybe a third. That should give you a safe place to play!
 
 ## Simple use
-
-*Note: IMAPdedup expects to run under Python 3.*
 
 You can list the full syntax by running:
 
