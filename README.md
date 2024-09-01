@@ -21,7 +21,13 @@ And if you want to add the Message-ID, if it exists, into this checksum, add the
 
 ## Installation
 
-IMAPdedup doesn't currently have any installation process.  You just need the imapdedup.py file, and Python 3.
+IMAPdedup doesn't *need* any installation process.  You can need Python 3 and can then just run the imapdedup.py file in `src/imapdedup`.
+
+However, you can now install it using pip:
+
+    pip install imapdedup
+
+This will install the script and its dependencies, and you can then run it from the command line as `imapdedup`.  In the examples below, we'll assume you've done that.
 
 ## Trying it out
 
@@ -33,17 +39,13 @@ If you want to experiment, create a new folder on your mail server, and copy som
 
 You can list the full syntax by running:
 
-    ./imapdedup.py -h
+    imapdedup -h
 
 but the key options are described below.  You will of course need the address of your IMAP email server, and your username on that server.
 
-If you're not on a system that can execute Python scripts directly like this, you may need something like:
-
-    python3 imapdedup.py -h
-
 Try starting with something harmless like:
 
-    ./imapdedup.py -s imap.myisp.com -u myuserid -x -l
+    imapdedup -s imap.myisp.com -u myuserid -x -l
 
 which prompts you for your password and then lists the mailboxes on the server. You can then use the mailbox names it returns when running other commands. (The `-x` option specifies that the connection should use SSL, which is generally the case nowadays. If this doesn't work, you can leave it out, but you should probably also complain to your email provider because they aren't providing sufficient security! A future version of the script will make this the default.)
 
@@ -51,11 +53,11 @@ It's worth trying getting this list at least once because different mail servers
 
 Once you know your folder names, you can run something like
 
-    ./imapdedup.py -s imap.myisp.com -u myuserid -x -n INBOX.Test
+    imapdedup -s imap.myisp.com -u myuserid -x -n INBOX.Test
 
 and the script will tell you what it would do to your *INBOX/Test* folder.  If your folder name contains spaces, you'll need to put it in quotes:
 
-    ./imapdedup.py -s imap.myisp.com -u myuserid -x -n "My Important Messages"
+    imapdedup -s imap.myisp.com -u myuserid -x -n "My Important Messages"
 
 The `-n` option tells IMAPdedup that this is a 'dry run': it stops it from *actually making* any changes; it's a good idea to run with this first unless you like living dangerously.  When you're ready, leave that out, and it will go ahead and mark your duplicate messages as deleted.
 
@@ -117,19 +119,19 @@ So my proposed workaround if you're in this situation is to ask the program for 
 
 Here's a quick demo. Imagine you normally run IMAPdedup like this:
 
-    ./imapdedup.py -x -s servername -u username -w password ...
+    imapdedup -x -s servername -u username -w password ...
 
 You can save your list of folders to a file called folders.txt like this:
 
-    ./imapdedup.py -x -s servername -u username -w password -l > folders.txt
+    imapdedup -x -s servername -u username -w password -l > folders.txt
 
 The standard unix `xargs` utility lets you read a list of words (or lines) from the standard input and run another command passing those words from the list as arguments. So you can do something like this (I've included the -n so it's a dry run and should be safe if you try it!):
 
-    cat folders.txt | xargs ./imapdedup.py -x -s servername -u username -w password -n
+    cat folders.txt | xargs imapdedup -x -s servername -u username -w password -n
 
 xargs will basically run imapdedup with all the folder names in folders.txt passed as arguments as if you had typed them on the command line. *NOTE:* If your folder names have any spaces in them, you should open the text files in an editor and put quotes around each line that has them. Alternatively, you can use sed to do this for you:
 
-    cat folders.txt | sed 's/^\(.*\)$/"\1"/' | xargs ./imapdedup.py -x -s servername -w pasword -u username -n
+    cat folders.txt | sed 's/^\(.*\)$/"\1"/' | xargs imapdedup -x -s servername -w pasword -u username -n
 
 All of this does require you to be running on Linux or a Mac. Much harder to do anything like this on Windows, of course, though WSL might make it easier.
 

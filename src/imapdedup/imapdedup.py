@@ -345,7 +345,7 @@ def get_tagged_msgnums(server: imaplib.IMAP4, tag_name: str, sent_before: Option
 def process_messages(server: imaplib.IMAP4, msgs_to_delete: List[int], tag_name: Optional[str] = None, copy_mailbox: Optional[str] = None):
     """
     Actually do whatever we want to do to duplicates.
-    Tag them with (\Deleted) or the specified tag_name.
+    Tag them with (\\Deleted) or the specified tag_name.
     Copy them to another mailbox first if copy_mailbox specified.
     """
     message_ids = ",".join(map(str, msgs_to_delete))
@@ -608,6 +608,9 @@ def process(options, mboxes: List[str]):
     finally:
         server.logout()
 
-if __name__ == "__main__":
+def main():
     options, mboxes = get_arguments()
     process(options, mboxes)
+
+if __name__ == "__main__":
+    main()
