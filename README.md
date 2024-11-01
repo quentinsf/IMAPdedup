@@ -1,7 +1,7 @@
 # IMAPdedup
 *A duplicate email message remover*
 
-**Please note that recent versions require Python 3.6 or later**
+**Please note that these instructions have changed since version 1.1.**
 
 IMAPdedup is a command-line utility that looks for duplicate messages in a set of IMAP mailboxes and tidies up all but the first copy of any duplicates found.
 
@@ -21,15 +21,28 @@ And if you want to add the Message-ID, if it exists, into this checksum, add the
 
 ## Installation
 
-IMAPdedup doesn't *need* any installation process and doesn't have any external dependencies.  You only need Python 3 and can then just run the imapdedup.py file in `src/imapdedup`. In this case, the command you would run would be something like:
-
-    python3 imapdedup.py ...
-
-However, you can now install it using pip:
+You can now install IMAPdedup using pip:
 
     pip install imapdedup
 
-This will install the script and its dependencies, and you can then just run it from the command line as `imapdedup`.  In the examples below, we'll assume you've done that.
+This will install the script, and you can then just run it from the command line as `imapdedup`.  In the examples below, we'll assume you've done that.
+
+**Alternatives**
+
+Some environments may require you to use `pip3` instead of `pip`. And some may not let you install packages globally. In that case, you can use the `--user` option to install it in your home directory:
+
+    pip install --user imapdedup
+
+IMAPdedup doesn't *need* any installation process, however, and doesn't have any external dependencies.  You only need Python 3 and can then just run the imapdedup.py file in `src/imapdedup`. In this case, the command you would run would be something like:
+
+    python3 imapdedup.py ...
+
+If you might want to modify the script yourself, I recommend using [uv](https://docs.astral.sh/uv/). You can then simply get a copy of the source and use: 
+
+    uv run imapdedup ....
+
+which will create a virtualenv for you and keep it up to date without you having to think much about it.
+
 
 ## Trying it out
 
