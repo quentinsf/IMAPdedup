@@ -43,6 +43,18 @@ If you might want to modify the script yourself, I recommend using [uv](https://
 
 which will create a virtualenv for you and keep it up to date as you experiment without you having to think much about it or do any activation and deactivation.
 
+### Using docker
+
+To run IMAPdedup in a docker container, you can use the following commands:
+First, build the image:
+
+    docker build -t imapdedup .
+
+Then you can run the container with the following command:
+
+    docker run --rm -it imapdedup --help
+
+See _[Simple-use](#simple-use)_ for more information on how to use IMAPdedup.
 
 ## Trying it out
 
