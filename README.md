@@ -43,9 +43,9 @@ If you might want to modify the script yourself, I recommend using [uv](https://
 
 which will create a virtualenv for you and keep it up to date as you experiment without you having to think much about it or do any activation and deactivation.
 
-### Using docker
+### Using Docker
 
-To run IMAPdedup in a docker container, you can use the following commands:
+To run IMAPdedup in a Docker container, you can use the following commands:
 First, build the image:
 
     docker build -t imapdedup .
@@ -181,7 +181,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky, Thomas Bullinger, Stephen Schwetz and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky, Thomas Bullinger, Stephen Schwetz, Lukas Wolfsteiner and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 
