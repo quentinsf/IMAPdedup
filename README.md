@@ -98,7 +98,7 @@ If you have a hierarchy of folders, you can search recursively within the childr
 
 You can use the `-R` option to reverse the order in which the folders are processed.  The main use of this is with recursive searches, if you want duplicates of messages found in child folders to be removed from the parents, rather than the other way around.
 
-With the `-d` option, it's removes all marked messages from the server (Expunge).  This is a dangerous option, so use with caution!
+With the `-d` option, the server will be told to remove all marked messages ('expunge').  This is a dangerous option, so use with caution, but if you are confident you do want to delete everything marked, it can be much faster to ask for them to be expunged.
 
 ## Specifying the password
 
@@ -181,7 +181,7 @@ This software is released under the terms of the GPL v2.  See the included LICEN
 
 It comes with no warranties, express or implied; use at your own risk!
 
-Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky, Thomas Bullinger, Stephen Schwetz, Lukas Wolfsteiner and others for their contributions!
+Many thanks to Liyu (Luke) Liu, Adam Horner, Michael Haggerty, 'GargaBou', Stefan Agner, Vincent Bernat, Jan Engels, Fabrizio Mele, Jonathan Vanasco, Kirill A. Korinsky, Thomas Bullinger, Stephen Schwetz, Lukas Wolfsteiner, Günter Bailey and others for their contributions!
 
 [Quentin Stafford-Fraser][1]
 

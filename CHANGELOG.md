@@ -1,5 +1,9 @@
 # IMAPdedup Change Log
 
+## [1.2] - 2024-11-18
+
+* Add the '-d' (or --delete) option, which will expunge all messages marked for deletion from the server.
+
 ## [1.1] - 2024-09-01
 
 * Package the script as a Python package, so you can install it with `pip install imapdedup` and run it from anywhere.
