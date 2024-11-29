@@ -37,7 +37,7 @@ Note that IMAPdedup doesn't *need* any installation process, however, and doesn'
 
     python3 imapdedup.py ...
 
-If you might want to modify the script yourself, I recommend using [uv](https://docs.astral.sh/uv/). You can then simply get a copy of the source and use: 
+If you might want to modify the script yourself, I recommend using [uv](https://docs.astral.sh/uv/). You can then simply get a copy of the source and use:
 
     uv run imapdedup ....
 
@@ -48,11 +48,15 @@ which will create a virtualenv for you and keep it up to date as you experiment 
 To run IMAPdedup in a Docker container, you can use the following commands:
 First, build the image:
 
-    docker build -t imapdedup .
+    docker build -t ghcr.io/quentinsf/imapdedup:latest .
+
+Or pull an image from the GitHub Container Registry:
+
+    docker pull ghcr.io/quentinsf/imapdedup:latest
 
 Then you can run the container with the following command:
 
-    docker run --rm -it imapdedup --help
+    docker run --rm -it ghcr.io/quentinsf/imapdedup:latest --help
 
 See _[Simple-use](#simple-use)_ for more information on how to use IMAPdedup.
 
@@ -123,7 +127,7 @@ We don't curently have a way of storing your options in a configuration file, bu
     import imapdedup
 
     options = [
-        "-s", "imap.example.com", 
+        "-s", "imap.example.com",
         "-u", "my_user_name",
         "-w", "my_password",
         "-x"
