@@ -38,15 +38,13 @@ Note that IMAPdedup doesn't *need* any installation process, however, and doesn'
     python3 imapdedup.py ...
 
 
-If you use the excellent [uv](https://docs.astral.sh/uv/) tool, you can probably, as an alternative, just run the following without explicitly installing the package:
+If you use the excellent [uv](https://docs.astral.sh/uv/) tool, you can probably, as an alternative, just run one of the following commands without explicitly installing the package:
 
+    uv tool run imapdedup
     uvx imapdedup
-
-or
-
     uvenv run imapdedup
 
-depending on your version, and if you want to modify the script yourself, you can simply get a copy of the source and use: 
+depending on your version and system, and if you want to modify the script yourself, you can simply get a copy of the source and use: 
 
     uv run imapdedup ....
 
