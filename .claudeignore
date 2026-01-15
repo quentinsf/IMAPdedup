@@ -1,0 +1,16 @@
+# Files containing sensitive information
+dedup_fastmail.py
+NOTES.txt
+
+# Development artifacts
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+.ruff_cache/
+.mypy_cache/
+
+# Build outputs
+dist/
+build/

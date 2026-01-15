@@ -5,6 +5,14 @@ description = "IMAP de-duplication tool"
 readme = "README.md"
 requires-python = ">=3.6"
 dependencies = []
+license = {text = "GPL-2.0-only"}
+authors = [
+    {name = "Quentin Stafford-Fraser"}
+]
+keywords = ["imap", "email", "duplicate", "deduplication", "mail"]
+
+[project.optional-dependencies]
+keyring = ["keyring"]
 
 [project.scripts]
 imapdedup = "imapdedup:main"

@@ -12,3 +12,4 @@ build/
 .ruff_cache/
 .ipynb_checkpoints/
 __pycache__/
+dedup_fastmail.py
