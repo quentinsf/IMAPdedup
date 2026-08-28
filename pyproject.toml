@@ -1,9 +1,9 @@
 [project]
 name = "imapdedup"
-version = "1.3.1"
+version = "1.4"
 description = "IMAP de-duplication tool"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.10"
 dependencies = []
 license = {text = "GPL-2.0-only"}
 authors = [

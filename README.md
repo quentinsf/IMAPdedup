@@ -1,8 +1,6 @@
 # IMAPdedup
 *A duplicate email message remover*
 
-**Please note that these instructions -- the installation instructions in particular -- have changed since version 1.1.**
-
 IMAPdedup is a command-line utility that looks for duplicate messages in a set of IMAP mailboxes and tidies up all but the first copy of any duplicates found.
 
 To be more exact, it *marks* the second and later occurrences of a message as 'deleted' on the server.   Exactly what that does in your environment will depend on your mail server and your mail client.

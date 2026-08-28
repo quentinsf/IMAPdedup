@@ -1,5 +1,9 @@
 # IMAPdedup Change Log
 
+## [1.4] - 2026-08-27
+
+* No real functional changes, but the minimum Python version is now 3.10, and the code has been updated to adopt some newer Python conventions.
+
 ## [1.3] - 2026-08-10
 
 * Attempt fix for issue #57: 'Too many items to unpack' from some servers which return extraneous lines in the response.
