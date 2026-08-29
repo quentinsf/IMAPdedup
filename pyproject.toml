@@ -1,6 +1,6 @@
 [project]
 name = "imapdedup"
-version = "1.4"
+version = "1.5"
 description = "IMAP de-duplication tool"
 readme = "README.md"
 requires-python = ">=3.10"

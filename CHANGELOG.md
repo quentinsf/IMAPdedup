@@ -1,5 +1,12 @@
 # IMAPdedup Change Log
 
+## [1.5] - 2026-08-29
+
+* Performs operations on messages using IMAP UIDs rather than just the sequence IDs.  This should be more robust if mailboxes are modified during the process, or if the connection is restarted.
+* Periodically stores an in-memory checkpoint of the current position, so that if the server connection is lost we can reconnect and carry on more efficiently.
+
+My thanks to Tom Holden who suggested these changes, though I've used a different implementation from his.
+
 ## [1.4] - 2026-08-27
 
 * No real functional changes, but the minimum Python version is now 3.10, and the code has been updated to adopt some newer Python conventions.
