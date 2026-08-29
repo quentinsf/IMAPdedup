@@ -34,7 +34,9 @@ import hashlib
 import imaplib
 import os
 import re
+import socket
 import sys
+import time
 from email.errors import HeaderParseError
 from email.header import decode_header
 from email.message import Message
@@ -45,6 +47,14 @@ from typing import Any
 # since we're often dealing with big folders and large numbers of messages.
 
 imaplib._MAXLINE = max(10_000_000, imaplib._MAXLINE)
+
+# Timeout in seconds for IMAP socket operations. Without this, a connection
+# that has silently died can hang forever on a read instead of raising, which
+# would prevent the reconnect-and-resume logic below from ever kicking in.
+SOCKET_TIMEOUT = 300
+
+# How many times to retry connecting/reconnecting to the server before giving up.
+MAX_RECONNECT_ATTEMPTS = 10
 
 class ImapDedupException(Exception):
     pass
@@ -408,8 +418,177 @@ def add_quotes(mbox: str) -> str:
     return mbox
 
 
-# This actually does the work
-def process(options, mboxes: list[str]):
+def process_mailbox(
+    server: imaplib.IMAP4,
+    mbox: str,
+    options,
+    msg_ids: dict[str, str],
+    checkpoints: dict[str, int],
+):
+    """
+    Scan a single mailbox for duplicates against msg_ids (which also holds
+    entries from any mailboxes already processed in this run) and mark/tag/
+    copy them.
+
+    If checkpoints holds a UID for this mailbox left over from an attempt
+    that was interrupted by a connection drop, resume scanning after it
+    instead of starting the mailbox over. Duplicates found in each batch are
+    marked immediately, and the checkpoint is only advanced once that marking
+    has succeeded - so a connection drop can never leave a found duplicate
+    unmarked while the checkpoint already considers that batch done.
+    """
+    parser = BytesParser()
+    uids_to_delete: list[int] = []  # accumulated across the mailbox, for reporting only
+    msg_map = {}
+
+    # Make sure mailbox name is surrounded by quotes if it contains a space
+    mbox = add_quotes(mbox)
+
+    # Select the mailbox
+    msgs = check_response(server.select(mailbox=mbox, readonly=options.dry_run))[0]
+    print(f"There are {int(msgs)} messages in {mbox}.")
+
+    # Check how many messages are already marked 'deleted'...
+    numdeleted = len(get_deleted_uids(server, options.sent_before))
+    print(f'{numdeleted or "No"} message(s) currently marked as deleted in {mbox}')
+
+    # Now get a list of the ones that aren't deleted.
+    # That's what we'll actually use.
+    all_uids = get_undeleted_uids(server, options.sent_before)
+
+    start_index = 0
+    checkpoint_uid = checkpoints.get(mbox)
+    if checkpoint_uid is not None:
+        try:
+            start_index = all_uids.index(checkpoint_uid) + 1
+            print(f"Resuming {mbox} after UID {checkpoint_uid} ({start_index} message(s) already processed).")
+        except ValueError:
+            print(f"Checkpoint UID {checkpoint_uid} no longer present in {mbox}; restarting scan for this mailbox.")
+
+    if start_index == 0:
+        # Starting (or restarting) this mailbox from scratch: forget any
+        # sightings recorded against it by an earlier, interrupted attempt,
+        # so a message already seen once isn't mistaken for a duplicate of
+        # itself. Sightings from other, already-completed mailboxes are left
+        # untouched.
+        stale_prefix = f"{mbox}_"
+        for stale_id in [mid for mid, label in msg_ids.items() if label.startswith(stale_prefix)]:
+            del msg_ids[stale_id]
+
+    uids = all_uids[start_index:]
+    print(f"{len(uids)} others in {mbox}")
+
+    chunkSize = 100
+    if options.verbose:
+        print(f"Reading the others... (in batches of {chunkSize})")
+
+    for i in range(0, len(uids), chunkSize):
+        if options.verbose:
+            print(f"Batch starting at item {start_index + i}")
+
+        chunk = uids[i: i + chunkSize]
+        chunk_uids_to_delete = []
+
+        # and parse them.
+        for uid, hinfo in get_msg_headers(server, chunk):
+            # Parse the header info into a Message object
+            mp = parser.parsebytes(hinfo)
+
+            if options.verbose:
+                print(f"Checking {mbox} message {uid}")
+                # Store message only when verbose is enabled (to print it later on)
+                msg_map[uid] = mp
+
+            # Record the message-ID header (or generate one from other headers)
+            msg_id = get_message_id(
+                mp, options.use_checksum, options.use_id_in_checksum
+            )
+
+            if msg_id:
+                # If we've seen this message before, record it as one to be
+                # deleted in this mailbox.
+                if msg_id in msg_ids:
+                    print(
+                        f"Message {mbox}_{uid} is a duplicate of {msg_ids[msg_id]}" +
+                         " and {} be {}".format(
+                            options.dry_run and "would" or "will",
+                            f"tagged as '{options.tag_name}'" if options.tag_name else "marked as deleted",
+                        )
+                    )
+                    if options.show or options.verbose:
+                        print("Subject:", mp["Subject"])
+                        print("From:", mp["From"])
+                        print("Date:", mp["Date"])
+                    chunk_uids_to_delete.append(uid)
+                # Otherwise just record the fact that we've seen it
+                else:
+                    msg_ids[msg_id] = f"{mbox}_{uid}"
+
+        # Mark this batch's duplicates right away, before moving the
+        # checkpoint past them - see the docstring for why the ordering
+        # matters.
+        if chunk_uids_to_delete and not options.dry_run:
+            process_messages(server, chunk_uids_to_delete, options.tag_name, options.copy_mailbox)
+        uids_to_delete.extend(chunk_uids_to_delete)
+        checkpoints[mbox] = chunk[-1]
+
+        print(f"{start_index + min(len(uids), i + chunkSize)} message(s) in {mbox} processed")
+
+    # OK - we've been through this mailbox, and uids_to_delete holds a list
+    # of the duplicates we've found (and, unless this was a dry run, already
+    # marked). Note that if a connection drop caused this mailbox to be
+    # resumed partway through, uids_to_delete (and msg_map, for the verbose
+    # dump below) only cover what was found since the resume point - earlier
+    # duplicates were already marked in a prior, interrupted call and aren't
+    # re-counted here, so this summary can undercount after a resume even
+    # though nothing was left unmarked.
+
+    if not uids_to_delete:
+        print(f"No duplicates were found in {mbox}")
+
+    else:
+        if options.verbose:
+            print("These are the duplicate messages:\n")
+            for uid in uids_to_delete:
+                print_message_info(msg_map[uid])
+
+        if options.dry_run:
+            actioned = f"tagged as '{options.tag_name}'" if options.tag_name else "marked as deleted"
+            print(
+                "If you had NOT selected the 'dry-run' option,\n"
+                f"  {len(uids_to_delete)} messages would now be {actioned}."
+            )
+
+        else:
+            if options.copy_mailbox:
+                print(f"Copied {len(uids_to_delete)} messages to '{options.copy_mailbox}'.")
+            if options.tag_name:
+                print(f"Tagged {len(uids_to_delete)} messages as '{options.tag_name}'.")
+            else:
+                print(f"Marked {len(uids_to_delete)} messages as deleted.")
+            print("Confirming new numbers...")
+            numdeleted = len(get_deleted_uids(server, options.sent_before))
+            numundel = len(get_undeleted_uids(server, options.sent_before))
+            print(
+                "There are now {} messages marked as deleted and {} others in {}.".format(numdeleted, numundel, mbox)
+            )
+            if options.tag_name:
+                numtagged = len(get_tagged_uids(server, options.tag_name, options.sent_before))
+                print(
+                "There are now {} messages tagged as '{}' in {}.".format(numtagged, options.tag_name, mbox)
+            )
+
+    if options.delete_marked_messages:
+        delete_marked_messages(server)
+
+
+def connect_and_login(options) -> imaplib.IMAP4:
+    """
+    Connect to the IMAP server (or process) described by options, and log in.
+    Raises OSError on connection failure, or ImapDedupException on login
+    failure. Used both for the initial connection and to reconnect after a
+    dropped connection mid-run.
+    """
     serverclass: type[Any]
     if options.process:
         serverclass = imaplib.IMAP4_stream
@@ -418,33 +597,25 @@ def process(options, mboxes: list[str]):
     else:
         serverclass = imaplib.IMAP4
 
-    try:
-        if options.process:
-            server = serverclass(options.process)
-        elif options.port:
-            server = serverclass(options.server, options.port)
-        else:
-            # Use the default, which will be different depending on SSL choice
-            server = serverclass(options.server)
-    except OSError as e:
-        sys.stderr.write(
-            "\nFailed to connect to server. Might be host, port or SSL settings?\n"
-        )
-        sys.stderr.write(f"{e}\n\n")
-        sys.exit(1)
+    if options.process:
+        server = serverclass(options.process)
+    elif options.port:
+        server = serverclass(options.server, options.port, timeout=SOCKET_TIMEOUT)
+    else:
+        # Use the default, which will be different depending on SSL choice
+        server = serverclass(options.server, timeout=SOCKET_TIMEOUT)
 
     #  server.debug = 4  # If you want to see what's going on
 
     if ("STARTTLS" in server.capabilities) and hasattr(server, "starttls"):
         server.starttls()
     elif options.starttls:
-        sys.stderr.write("\nError: Server did not offer TLS\n")
-        sys.exit(1)
+        raise ImapDedupException("Server did not offer TLS")
     elif not options.ssl:
         sys.stderr.write("\nWarning: Unencrypted connection\n")
 
-    try:
-        if not options.process:
+    if not options.process:
+        try:
             if options.authuser:
                 # Authenticate command - more info in RFC2501 sect 6.2.2
                 # and RFC2595 sect 6.
@@ -453,8 +624,47 @@ def process(options, mboxes: list[str]):
             else:
                 # Standard single user password-based login
                 server.login(options.user, options.password)
-    except Exception:
-        sys.stderr.write("\nError: Login failed\n")
+        except Exception as e:
+            raise ImapDedupException(f"Login failed: {e}") from e
+
+    return server
+
+
+def reconnect(options, max_attempts: int = MAX_RECONNECT_ATTEMPTS) -> imaplib.IMAP4:
+    """
+    Repeatedly try to reconnect and log back in to the server, with
+    exponential backoff. Used to recover from a connection dropped mid-run,
+    so processing can resume from the last checkpoint instead of starting
+    the whole mailbox over.
+    """
+    for attempt in range(max_attempts):
+        print(f"Reconnecting to the server (attempt {attempt + 1}/{max_attempts})...")
+        try:
+            server = connect_and_login(options)
+            print("Reconnected.")
+            return server
+        except (OSError, ImapDedupException) as e:
+            print(f"Reconnection attempt {attempt + 1} failed: {e}")
+            if attempt + 1 == max_attempts:
+                raise ImapDedupException(f"Failed to reconnect after {max_attempts} attempts") from e
+            wait_time = min(60, 5 * (2 ** attempt))
+            print(f"Waiting {wait_time}s before retrying...")
+            time.sleep(wait_time)
+    raise ImapDedupException("Failed to reconnect")
+
+
+# This actually does the work
+def process(options, mboxes: list[str]):
+    try:
+        server = connect_and_login(options)
+    except OSError as e:
+        sys.stderr.write(
+            "\nFailed to connect to server. Might be host, port or SSL settings?\n"
+        )
+        sys.stderr.write(f"{e}\n\n")
+        sys.exit(1)
+    except ImapDedupException as e:
+        sys.stderr.write(f"\nError: {e}\n\n")
         sys.exit(1)
 
     # List mailboxes option
@@ -489,122 +699,24 @@ def process(options, mboxes: list[str]):
     # OK - let's get started.
     # Iterate through a set of named mailboxes and delete the later messages discovered.
     try:
-        parser = BytesParser()  # can be the same for all mailboxes
         # Create a list of previously seen message IDs, in any mailbox
         msg_ids: dict[str, str] = {}
+        # Per-mailbox "last processed UID" checkpoints, used to resume a scan
+        # after a dropped connection instead of starting the mailbox over.
+        # This only lives for the duration of this run - it isn't persisted
+        # to disk, so a killed/restarted process still rescans from scratch.
+        checkpoints: dict[str, int] = {}
         for mbox in mboxes:
-            uids_to_delete = []  # should be reset for each mbox
-            msg_map = {}  # should be reset for each mbox
-
-            # Make sure mailbox name is surrounded by quotes if it contains a space
-            mbox = add_quotes(mbox)
-
-            # Select the mailbox
-            msgs = check_response(server.select(mailbox=mbox, readonly=options.dry_run))[0]
-            print(f"There are {int(msgs)} messages in {mbox}.")
-
-            # Check how many messages are already marked 'deleted'...
-            numdeleted = len(get_deleted_uids(server, options.sent_before))
-            print(f'{numdeleted or "No"} message(s) currently marked as deleted in {mbox}')
-
-            # Now get a list of the ones that aren't deleted.
-            # That's what we'll actually use.
-            uids = get_undeleted_uids(server, options.sent_before)
-            print(f"{len(uids)} others in {mbox}")
-
-            chunkSize = 100
-            if options.verbose:
-                print(f"Reading the others... (in batches of {chunkSize})")
-
-            for i in range(0, len(uids), chunkSize):
-                if options.verbose:
-                    print(f"Batch starting at item {i}")
-
-                # and parse them.
-                for uid, hinfo in get_msg_headers(server, uids[i: i + chunkSize]):
-                    # Parse the header info into a Message object
-                    mp = parser.parsebytes(hinfo)
-
-                    if options.verbose:
-                        print(f"Checking {mbox} message {uid}")
-                        # Store message only when verbose is enabled (to print it later on)
-                        msg_map[uid] = mp
-
-                    # Record the message-ID header (or generate one from other headers)
-                    msg_id = get_message_id(
-                        mp, options.use_checksum, options.use_id_in_checksum
-                    )
-
-                    if msg_id:
-                        # If we've seen this message before, record it as one to be
-                        # deleted in this mailbox.
-                        if msg_id in msg_ids:
-                            print(
-                                f"Message {mbox}_{uid} is a duplicate of {msg_ids[msg_id]}" +
-                                 " and {} be {}".format(
-                                    options.dry_run and "would" or "will",
-                                    f"tagged as '{options.tag_name}'" if options.tag_name else "marked as deleted",
-                                )
-                            )
-                            if options.show or options.verbose:
-                                print("Subject:", mp["Subject"])
-                                print("From:", mp["From"])
-                                print("Date:", mp["Date"])
-                            uids_to_delete.append(uid)
-                        # Otherwise just record the fact that we've seen it
-                        else:
-                            msg_ids[msg_id] = f"{mbox}_{uid}"
-
-                print(f"{min(len(uids), i + chunkSize)} message(s) in {mbox} processed")
-
-            # OK - we've been through this mailbox, and uids_to_delete holds
-            # a list of the duplicates we've found.
-
-            if not uids_to_delete:
-                print(f"No duplicates were found in {mbox}")
-
-            else:
-                if options.verbose:
-                    print("These are the duplicate messages:\n")
-                    for uid in uids_to_delete:
-                        print_message_info(msg_map[uid])
-
-                if options.dry_run:
-                    actioned = f"tagged as '{options.tag_name}'" if options.tag_name else "marked as deleted"
-                    print(
-                        "If you had NOT selected the 'dry-run' option,\n"
-                        f"  {len(uids_to_delete)} messages would now be {actioned}."
-                    )
-
-                else:
-                    if options.copy_mailbox:
-                        print(f"Copying {len(uids_to_delete)} messages to '{options.copy_mailbox}'...")
-                    if options.tag_name:
-                        print(f"Tagging {len(uids_to_delete)} messages as '{options.tag_name}'...")
-                    else:
-                        print(f"Marking {len(uids_to_delete)} messages as deleted...")
-                    # Deleting messages one at a time can be slow if there are many,
-                    # so we batch them up.
-                    chunkSize = 30
-                    if options.verbose:
-                        print("(in batches of %d)" % chunkSize)
-                    for i in range(0, len(uids_to_delete), chunkSize):
-                        process_messages(server, uids_to_delete[i: i + chunkSize], options.tag_name, options.copy_mailbox)
-                        if options.verbose:
-                            print("Batch starting at item %d marked." % i)
-                    print("Confirming new numbers...")
-                    numdeleted = len(get_deleted_uids(server, options.sent_before))
-                    numundel = len(get_undeleted_uids(server, options.sent_before))
-                    print(
-                        "There are now {} messages marked as deleted and {} others in {}.".format(numdeleted, numundel, mbox)
-                    )
-                    if options.tag_name:
-                        numtagged = len(get_tagged_uids(server, options.tag_name, options.sent_before))
-                        print(
-                        "There are now {} messages tagged as '{}' in {}.".format(numtagged, options.tag_name, mbox)
-                    )
-            if options.delete_marked_messages:
-                delete_marked_messages(server)
+            for attempt in range(MAX_RECONNECT_ATTEMPTS):
+                try:
+                    process_mailbox(server, mbox, options, msg_ids, checkpoints)
+                    break
+                except (imaplib.IMAP4.abort, socket.error, socket.timeout, TimeoutError, OSError) as e:
+                    print(f"Connection error while processing '{mbox}' (attempt {attempt + 1}/{MAX_RECONNECT_ATTEMPTS}): {e}")
+                    if attempt + 1 == MAX_RECONNECT_ATTEMPTS:
+                        raise ImapDedupException(f"Failed to process '{mbox}' after {MAX_RECONNECT_ATTEMPTS} attempts") from e
+                    time.sleep(5)
+                    server = reconnect(options)
 
         if not options.no_close:
             server.close()
