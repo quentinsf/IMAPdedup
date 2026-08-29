@@ -300,54 +300,57 @@ def get_mailbox_list(server: imaplib.IMAP4, directory: str = '""', pattern: str 
     return resp
 
 
-def get_matching_msgnums(server: imaplib.IMAP4, query: str, sent_before: str | None) -> list[int]:
+def get_matching_uids(server: imaplib.IMAP4, query: str, sent_before: str | None) -> list[int]:
     """
-    Return a list of ids of deleted messages in the folder.
+    Return a list of IMAP UIDs of messages matching the given query in the
+    selected folder. UIDs (unlike sequence numbers) stay stable for the life
+    of a message in a mailbox, so it's safe to hold onto them across the
+    fetch/store calls we make later in processing this mailbox.
     """
     resp = []
     if (sent_before is not None):
         query = f"{query} SENTBEFORE {sent_before}"
         print(f"Getting matching messages sent before {sent_before}")
-    deleted_info = check_response(server.search(None, query))
-    if deleted_info and deleted_info[0]:   
+    deleted_info = check_response(server.uid("search", None, query))
+    if deleted_info and deleted_info[0]:
         # If neither None nor empty nor [None], then
-        # the first item should be a list of msg ids
+        # the first item should be a list of UIDs
         resp = [int(n) for n in deleted_info[0].split()]
     return resp
 
-def get_deleted_msgnums(server: imaplib.IMAP4, sent_before: str | None) -> list[int]:
+def get_deleted_uids(server: imaplib.IMAP4, sent_before: str | None) -> list[int]:
     """
-    Return a list of ids of deleted messages in the folder.
+    Return a list of UIDs of deleted messages in the folder.
     """
-    return get_matching_msgnums(server, "DELETED", sent_before)
+    return get_matching_uids(server, "DELETED", sent_before)
 
-def get_undeleted_msgnums(server: imaplib.IMAP4, sent_before: str | None) -> list[int]:
+def get_undeleted_uids(server: imaplib.IMAP4, sent_before: str | None) -> list[int]:
     """
-    Return a list of ids of non-deleted messages in the folder.
+    Return a list of UIDs of non-deleted messages in the folder.
     """
-    return get_matching_msgnums(server, "UNDELETED", sent_before)
+    return get_matching_uids(server, "UNDELETED", sent_before)
 
-def get_tagged_msgnums(server: imaplib.IMAP4, tag_name: str, sent_before: str | None) -> list[int]:
+def get_tagged_uids(server: imaplib.IMAP4, tag_name: str, sent_before: str | None) -> list[int]:
     """
-    Return a list of ids of tagged messages in the folder.
+    Return a list of UIDs of tagged messages in the folder.
     """
-    return get_matching_msgnums(server, f"KEYWORD {tag_name}", sent_before)
+    return get_matching_uids(server, f"KEYWORD {tag_name}", sent_before)
 
 
-def process_messages(server: imaplib.IMAP4, msgs_to_delete: list[int], tag_name: str | None = None, copy_mailbox: str | None = None):
+def process_messages(server: imaplib.IMAP4, uids_to_delete: list[int], tag_name: str | None = None, copy_mailbox: str | None = None):
     """
     Actually do whatever we want to do to duplicates.
     Tag them with (\\Deleted) or the specified tag_name.
     Copy them to another mailbox first if copy_mailbox specified.
     """
-    message_ids = ",".join(map(str, msgs_to_delete))
+    uid_string = ",".join(map(str, uids_to_delete))
     action = tag_name or r"(\Deleted)"
     if copy_mailbox:
         check_response(
-            server.copy(message_ids, copy_mailbox)
+            server.uid("copy", uid_string, copy_mailbox)
         )
     check_response(
-        server.store(message_ids, "+FLAGS", action)
+        server.uid("store", uid_string, "+FLAGS", action)
     )
 
 
@@ -356,30 +359,32 @@ def delete_marked_messages(server: imaplib.IMAP4):
     check_response(server.expunge())
 
 
-def get_msg_headers(server: imaplib.IMAP4, msg_ids: list[int]) -> list[tuple[int, bytes]]:
+def get_msg_headers(server: imaplib.IMAP4, uids: list[int]) -> list[tuple[int, bytes]]:
     """
-    Get the dict of headers for each message in the list of provided IDs.
-    Return a list of tuples:  [ (msgid, header_bytes), (msgid, header_bytes)... ]
+    Get the dict of headers for each message in the list of provided UIDs.
+    Return a list of tuples:  [ (uid, header_bytes), (uid, header_bytes)... ]
     """
     # Get the header info for each message
-    message_ids_str = ",".join(map(str, msg_ids))
-    ms = check_response(server.fetch(message_ids_str, "(RFC822.HEADER)"))
+    uids_str = ",".join(map(str, uids))
+    ms = check_response(server.uid("fetch", uids_str, "(RFC822.HEADER)"))
 
     # Each message we asked for normally shows up as a (info, header_bytes) tuple,
-    # e.g. (b'123 (RFC822.HEADER {1234}', b'...headers...'), followed by a plain
-    # b')' entry to close the parenthesised list. However, some servers also mark
-    # the message \Seen as a side effect of this fetch and send an unsolicited
+    # e.g. (b'123 (UID 456 RFC822.HEADER {1234}', b'...headers...'), followed by a
+    # plain b')' entry to close the parenthesised list. However, some servers also
+    # mark the message \Seen as a side effect of this fetch and send an unsolicited
     # "* 123 FETCH (FLAGS (\Seen))" update, which imaplib lumps into this same
     # list (it only buckets untagged responses by type, not by which command
     # triggered them). That extra entry breaks any assumption of a fixed number
-    # of items per message, so we parse the message number out of each tuple's
-    # info line instead of relying on position, and ignore anything else.
+    # of items per message, so we parse the UID out of each tuple's info line
+    # instead of relying on position, and ignore anything else. A UID FETCH's
+    # response always includes a "UID <n>" data item regardless of what other
+    # items were requested (RFC 3501 section 6.4.8).
     resp: list[tuple[int, bytes]] = []
     for item in ms:
         if not isinstance(item, tuple) or len(item) != 2:
             continue
         info, hinfo = item
-        match = re.match(rb"^\s*(\d+)", info)
+        match = re.search(rb"UID\s+(\d+)", info)
         if match:
             resp.append((int(match.group(1)), hinfo))
     return resp
@@ -488,7 +493,7 @@ def process(options, mboxes: list[str]):
         # Create a list of previously seen message IDs, in any mailbox
         msg_ids: dict[str, str] = {}
         for mbox in mboxes:
-            msgs_to_delete = []  # should be reset for each mbox
+            uids_to_delete = []  # should be reset for each mbox
             msg_map = {}  # should be reset for each mbox
 
             # Make sure mailbox name is surrounded by quotes if it contains a space
@@ -499,31 +504,31 @@ def process(options, mboxes: list[str]):
             print(f"There are {int(msgs)} messages in {mbox}.")
 
             # Check how many messages are already marked 'deleted'...
-            numdeleted = len(get_deleted_msgnums(server, options.sent_before))
+            numdeleted = len(get_deleted_uids(server, options.sent_before))
             print(f'{numdeleted or "No"} message(s) currently marked as deleted in {mbox}')
 
-            # Now get a list of the ones that aren't deleted. 
+            # Now get a list of the ones that aren't deleted.
             # That's what we'll actually use.
-            msgnums = get_undeleted_msgnums(server, options.sent_before)
-            print(f"{len(msgnums)} others in {mbox}")
+            uids = get_undeleted_uids(server, options.sent_before)
+            print(f"{len(uids)} others in {mbox}")
 
             chunkSize = 100
             if options.verbose:
                 print(f"Reading the others... (in batches of {chunkSize})")
 
-            for i in range(0, len(msgnums), chunkSize):
+            for i in range(0, len(uids), chunkSize):
                 if options.verbose:
                     print(f"Batch starting at item {i}")
 
                 # and parse them.
-                for mnum, hinfo in get_msg_headers(server, msgnums[i: i + chunkSize]):
+                for uid, hinfo in get_msg_headers(server, uids[i: i + chunkSize]):
                     # Parse the header info into a Message object
                     mp = parser.parsebytes(hinfo)
 
                     if options.verbose:
-                        print(f"Checking {mbox} message {mnum}")
+                        print(f"Checking {mbox} message {uid}")
                         # Store message only when verbose is enabled (to print it later on)
-                        msg_map[mnum] = mp
+                        msg_map[uid] = mp
 
                     # Record the message-ID header (or generate one from other headers)
                     msg_id = get_message_id(
@@ -535,66 +540,66 @@ def process(options, mboxes: list[str]):
                         # deleted in this mailbox.
                         if msg_id in msg_ids:
                             print(
-                                f"Message {mbox}_{mnum} is a duplicate of {msg_ids[msg_id]}" +
+                                f"Message {mbox}_{uid} is a duplicate of {msg_ids[msg_id]}" +
                                  " and {} be {}".format(
                                     options.dry_run and "would" or "will",
                                     f"tagged as '{options.tag_name}'" if options.tag_name else "marked as deleted",
-                                ) 
+                                )
                             )
                             if options.show or options.verbose:
                                 print("Subject:", mp["Subject"])
                                 print("From:", mp["From"])
                                 print("Date:", mp["Date"])
-                            msgs_to_delete.append(mnum)
+                            uids_to_delete.append(uid)
                         # Otherwise just record the fact that we've seen it
                         else:
-                            msg_ids[msg_id] = f"{mbox}_{mnum}"
+                            msg_ids[msg_id] = f"{mbox}_{uid}"
 
-                print(f"{min(len(msgnums), i + chunkSize)} message(s) in {mbox} processed")
+                print(f"{min(len(uids), i + chunkSize)} message(s) in {mbox} processed")
 
-            # OK - we've been through this mailbox, and msgs_to_delete holds
+            # OK - we've been through this mailbox, and uids_to_delete holds
             # a list of the duplicates we've found.
 
-            if not msgs_to_delete:
+            if not uids_to_delete:
                 print(f"No duplicates were found in {mbox}")
 
             else:
                 if options.verbose:
                     print("These are the duplicate messages:\n")
-                    for mnum in msgs_to_delete:
-                        print_message_info(msg_map[mnum])
+                    for uid in uids_to_delete:
+                        print_message_info(msg_map[uid])
 
                 if options.dry_run:
                     actioned = f"tagged as '{options.tag_name}'" if options.tag_name else "marked as deleted"
                     print(
                         "If you had NOT selected the 'dry-run' option,\n"
-                        f"  {len(msgs_to_delete)} messages would now be {actioned}."
+                        f"  {len(uids_to_delete)} messages would now be {actioned}."
                     )
 
                 else:
                     if options.copy_mailbox:
-                        print(f"Copying {len(msgs_to_delete)} messages to '{options.copy_mailbox}'...")
+                        print(f"Copying {len(uids_to_delete)} messages to '{options.copy_mailbox}'...")
                     if options.tag_name:
-                        print(f"Tagging {len(msgs_to_delete)} messages as '{options.tag_name}'...")
+                        print(f"Tagging {len(uids_to_delete)} messages as '{options.tag_name}'...")
                     else:
-                        print(f"Marking {len(msgs_to_delete)} messages as deleted...")
+                        print(f"Marking {len(uids_to_delete)} messages as deleted...")
                     # Deleting messages one at a time can be slow if there are many,
                     # so we batch them up.
                     chunkSize = 30
                     if options.verbose:
                         print("(in batches of %d)" % chunkSize)
-                    for i in range(0, len(msgs_to_delete), chunkSize):
-                        process_messages(server, msgs_to_delete[i: i + chunkSize], options.tag_name, options.copy_mailbox)
+                    for i in range(0, len(uids_to_delete), chunkSize):
+                        process_messages(server, uids_to_delete[i: i + chunkSize], options.tag_name, options.copy_mailbox)
                         if options.verbose:
                             print("Batch starting at item %d marked." % i)
                     print("Confirming new numbers...")
-                    numdeleted = len(get_deleted_msgnums(server, options.sent_before))
-                    numundel = len(get_undeleted_msgnums(server, options.sent_before))
+                    numdeleted = len(get_deleted_uids(server, options.sent_before))
+                    numundel = len(get_undeleted_uids(server, options.sent_before))
                     print(
                         "There are now {} messages marked as deleted and {} others in {}.".format(numdeleted, numundel, mbox)
                     )
                     if options.tag_name:
-                        numtagged = len(get_tagged_msgnums(server, options.tag_name, options.sent_before))
+                        numtagged = len(get_tagged_uids(server, options.tag_name, options.sent_before))
                         print(
                         "There are now {} messages tagged as '{}' in {}.".format(numtagged, options.tag_name, mbox)
                     )
